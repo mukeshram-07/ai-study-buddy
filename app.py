@@ -12,7 +12,7 @@ st.set_page_config(
 )
 
 # ---------------------------------
-# Minimal ChatGPT-style theme
+# ChatGPT-style minimal theme
 # ---------------------------------
 st.markdown("""
 <style>
@@ -33,13 +33,20 @@ p, label, div {
 textarea {
     background-color: #111827 !important;
     color: #E5E7EB !important;
-    border-radius: 12px !important;
+    border-radius: 14px !important;
+    padding-bottom: 2.5rem !important;
+}
+.upload-row {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: -2.2rem;
+    margin-right: 0.6rem;
 }
 .stButton > button {
     background-color: #10B981;
     color: white;
     border-radius: 22px;
-    padding: 0.5rem 1.8rem;
+    padding: 0.45rem 1.6rem;
     font-weight: 600;
 }
 .stButton > button:hover {
@@ -77,44 +84,51 @@ def extract_text(file):
             if page.extract_text():
                 text += page.extract_text() + "\n"
         return text
+    elif file.type == "text/plain":
+        return file.read().decode("utf-8")
     return ""
 
 # ---------------------------------
 # UI
 # ---------------------------------
 st.markdown("<h1>Study Buddy</h1>", unsafe_allow_html=True)
-st.write("Ask questions, upload documents, or generate quizzes — just like ChatGPT.")
+st.write("Ask questions, upload documents, or generate quizzes.")
 
-uploaded_file = st.file_uploader(
-    "Attach document (optional)",
-    type=["pdf", "txt"]
-)
-
+# Chat input
 user_input = st.text_area(
     "Message",
     height=120,
-    placeholder="Ask a question or paste content here..."
+    placeholder="Ask something or paste content here..."
 )
 
+# Upload button positioned like ChatGPT (end of box)
+st.markdown("<div class='upload-row'>", unsafe_allow_html=True)
+uploaded_file = st.file_uploader(
+    "Attach file",
+    type=["pdf", "txt"],
+    label_visibility="collapsed"
+)
+st.markdown("</div>", unsafe_allow_html=True)
+
+# Action selector
 action = st.selectbox(
     "Action",
     ["Explain", "Summarize", "Generate 3 Quiz Questions"]
 )
 
 # ---------------------------------
-# Chat action
+# Send button
 # ---------------------------------
 if st.button("Send"):
     if not user_input.strip() and not uploaded_file:
-        st.warning("Please enter text or upload a document.")
+        st.warning("Enter text or upload a document.")
         st.stop()
 
     document_text = extract_text(uploaded_file)
 
-    # Build prompt (ChatGPT-style)
     if action == "Explain":
         prompt = f"""
-Explain the following content in simple, student-friendly language.
+Explain the following content in simple student-friendly language.
 
 User input:
 {user_input}
@@ -125,7 +139,7 @@ Document content (if any):
 
     elif action == "Summarize":
         prompt = f"""
-Summarize the following content clearly and concisely.
+Summarize the following content clearly.
 
 User input:
 {user_input}
@@ -134,7 +148,7 @@ Document content (if any):
 {document_text}
 """
 
-    else:  # 3 quiz questions mandatory
+    else:
         prompt = f"""
 Generate exactly 3 quiz questions with answers from the following content.
 
@@ -156,6 +170,6 @@ Document content (if any):
 
     # Chat-style output
     st.markdown("<div class='chat-box'>", unsafe_allow_html=True)
-    st.markdown("**Assistant:**")
+    st.markdown("**Assistant**")
     st.write(response)
     st.markdown("</div>", unsafe_allow_html=True)

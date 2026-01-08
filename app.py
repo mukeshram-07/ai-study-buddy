@@ -3,17 +3,72 @@ from groq import Groq
 import os
 import PyPDF2
 
-# -----------------------------
+# ---------------------------------
 # Page configuration
-# -----------------------------
+# ---------------------------------
 st.set_page_config(
     page_title="AI Study Buddy",
     layout="centered"
 )
 
-# -----------------------------
+# ---------------------------------
+# Minimal ChatGPT-style theme
+# ---------------------------------
+st.markdown("""
+<style>
+.stApp {
+    background-color: #0B1220;
+}
+.block-container {
+    max-width: 720px;
+    padding-top: 2rem;
+}
+
+/* Text */
+h1 { color: #E5E7EB; text-align: center; }
+p, label, div { color: #9CA3AF; }
+
+/* Textarea */
+textarea {
+    background-color: #111827 !important;
+    color: #E5E7EB !important;
+    border-radius: 14px !important;
+    padding-bottom: 2.8rem !important;
+}
+
+/* Upload icon row */
+.upload-icon {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: -2.6rem;
+    margin-right: 0.8rem;
+}
+
+/* Button */
+.stButton > button {
+    background-color: #10B981;
+    color: white;
+    border-radius: 22px;
+    padding: 0.5rem 1.8rem;
+    font-weight: 600;
+}
+.stButton > button:hover {
+    background-color: #059669;
+}
+
+/* Response box */
+.chat-box {
+    background-color: #111827;
+    border-radius: 14px;
+    padding: 1.2rem;
+    margin-top: 1.5rem;
+}
+</style>
+""", unsafe_allow_html=True)
+
+# ---------------------------------
 # Load API key
-# -----------------------------
+# ---------------------------------
 api_key = os.getenv("GROQ_API_KEY")
 if not api_key:
     st.error("API key not found.")
@@ -21,30 +76,13 @@ if not api_key:
 
 client = Groq(api_key=api_key)
 
-# -----------------------------
-# System Prompt (YOUR RULES)
-# -----------------------------
+# ---------------------------------
+# System Prompt (fixed structure)
+# ---------------------------------
 SYSTEM_PROMPT = """
 You are an AI Study Buddy designed to support students in understanding academic content.
 
-Your responsibilities are as follows:
-
-1. Analyze the user’s input, which may include:
-   - Plain text study notes
-   - A direct academic question
-   - An uploaded document (PDF, DOCX, or TXT)
-
-2. If study material is provided:
-   - Generate a concise and accurate summary.
-   - Explain the key concepts in clear, simple, academic language.
-   - Generate exactly three quiz questions with answers.
-
-3. If the user asks a direct question:
-   - Answer it clearly and correctly.
-   - Provide a brief explanation if relevant.
-   - Generate exactly three related quiz questions with answers.
-
-4. Structure every response strictly in this format:
+Always structure your response as:
 
 Summary:
 - ...
@@ -60,61 +98,62 @@ Practice Questions:
 3. Question 3
    Answer:
 
-5. Maintain a professional and neutral tone.
-6. Do not use emojis, slang, or informal language.
-7. Do not mention system limitations or constraints.
+Maintain a professional academic tone.
 """
 
-# -----------------------------
-# Helper: Extract text from PDF
-# -----------------------------
+# ---------------------------------
+# Helper: Extract text from PDF/TXT
+# ---------------------------------
 def extract_text(file):
-    if file is None:
+    if not file:
         return ""
     if file.type == "application/pdf":
         reader = PyPDF2.PdfReader(file)
-        text = ""
-        for page in reader.pages:
-            if page.extract_text():
-                text += page.extract_text() + "\n"
-        return text
+        return "\n".join(
+            page.extract_text() or "" for page in reader.pages
+        )
     elif file.type == "text/plain":
         return file.read().decode("utf-8")
     return ""
 
-# -----------------------------
+# ---------------------------------
 # UI
-# -----------------------------
-st.title("AI Study Buddy")
-st.write("Enter a question or notes. Uploading a document is optional.")
+# ---------------------------------
+st.markdown("<h1>AI Study Buddy</h1>", unsafe_allow_html=True)
+st.write("Ask a question or paste study material. File upload is optional.")
 
-uploaded_file = st.file_uploader(
-    "Upload document (optional)",
-    type=["pdf", "txt"]
-)
-
+# Message box (NO label)
 user_input = st.text_area(
-    "Input",
-    height=150,
-    placeholder="Enter a question or study notes here..."
+    label="",
+    height=130,
+    placeholder="Ask a question or paste study content here..."
 )
 
-# -----------------------------
-# Generate response
-# -----------------------------
-if st.button("Generate Response"):
+# Upload icon aligned to right of box
+st.markdown("<div class='upload-icon'>", unsafe_allow_html=True)
+uploaded_file = st.file_uploader(
+    "Attach file",
+    type=["pdf", "txt"],
+    label_visibility="collapsed"
+)
+st.markdown("</div>", unsafe_allow_html=True)
+
+# ---------------------------------
+# Action
+# ---------------------------------
+if st.button("Send"):
     if not user_input.strip() and not uploaded_file:
         st.warning("Please enter text or upload a document.")
         st.stop()
 
-    document_text = extract_text(uploaded_file)
+    doc_text = extract_text(uploaded_file)
 
-    final_input = f"""
-User Input:
+    final_prompt = f"""
+User Text:
 {user_input}
 
 Document Content:
-{document_text}
+{doc_text}
 """
 
     with st.spinner("Processing..."):
@@ -122,7 +161,7 @@ Document Content:
             model="llama-3.1-8b-instant",
             messages=[
                 {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": final_input}
+                {"role": "user", "content": final_prompt}
             ],
             temperature=0.3,
             max_tokens=500
@@ -130,5 +169,7 @@ Document Content:
 
     response = completion.choices[0].message.content
 
-    st.markdown("### AI Response")
+    st.markdown("<div class='chat-box'>", unsafe_allow_html=True)
+    st.markdown("**Assistant**")
     st.write(response)
+    st.markdown("</div>", unsafe_allow_html=True)

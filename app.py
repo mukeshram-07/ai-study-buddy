@@ -1,21 +1,14 @@
 import streamlit as st
-import requests
+import google.generativeai as genai
 import os
-import time
 
 # ---------------------------------
-# Hugging Face Router API details
+# Configure Gemini API
 # ---------------------------------
-MODEL_ID = "google/flan-t5-base"
-API_URL = f"https://router.huggingface.co/hf-inference/models/{MODEL_ID}"
-
-HEADERS = {
-    "Authorization": f"Bearer {os.getenv('HF_API_KEY')}",
-    "Content-Type": "application/json"
-}
+genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
 # ---------------------------------
-# Page configuration
+# Page config
 # ---------------------------------
 st.set_page_config(
     page_title="AI-Powered Study Buddy",
@@ -28,14 +21,14 @@ st.set_page_config(
 st.markdown("""
 <style>
 body {
-    background: linear-gradient(-45deg, #141e30, #243b55);
+    background: linear-gradient(-45deg, #0f2027, #203a43, #2c5364);
     background-size: 400% 400%;
     animation: gradientBG 10s ease infinite;
 }
 @keyframes gradientBG {
-    0% {background-position:0% 50%;}
-    50% {background-position:100% 50%;}
-    100% {background-position:0% 50%;}
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
 }
 </style>
 """, unsafe_allow_html=True)
@@ -43,7 +36,7 @@ body {
 # ---------------------------------
 # UI
 # ---------------------------------
-st.title("🤖 AI-Powered Study Buddy")
+st.title("🤖 AI-Powered Study Buddy (Gemini)")
 st.write("Explain topics • Summarize notes • Generate quizzes")
 
 option = st.selectbox(
@@ -65,51 +58,40 @@ if st.button("Generate"):
         st.warning("Please enter some text.")
         st.stop()
 
-    if len(text) > 800:
-        st.warning("Please limit input to 800 characters.")
+    if len(text) > 1200:
+        st.warning("Input too long. Please limit to 1200 characters.")
         st.stop()
 
-    # Prompt preparation
+    # Prompt creation
     if option == "Explain Topic":
-        prompt = f"Explain in simple words: {text}"
+        prompt = f"Explain the following topic in simple student-friendly language:\n{text}"
     elif option == "Summarize Notes":
-        prompt = f"Summarize clearly: {text}"
+        prompt = f"Summarize the following notes clearly:\n{text}"
     else:
-        prompt = f"Create 5 quiz questions with answers: {text}"
+        prompt = f"Create 5 quiz questions with answers from the following topic:\n{text}"
 
-    payload = {
-        "inputs": prompt,
-        "parameters": {
-            "max_new_tokens": 200,
-            "temperature": 0.5
-        }
-    }
+    # ---------------------------------
+    # Gemini model (FAST & STABLE)
+    # ---------------------------------
+    model = genai.GenerativeModel("gemini-1.5-flash")
 
     with st.spinner("Generating response..."):
         try:
-            response = requests.post(
-                API_URL,
-                headers=HEADERS,
-                json=payload,
-                timeout=30
+            response = model.generate_content(
+                prompt,
+                generation_config={
+                    "max_output_tokens": 300,
+                    "temperature": 0.4
+                }
             )
 
-            result = response.json()
+            output = getattr(response, "text", "").strip()
 
-            # SUCCESS CASE
-            if isinstance(result, list) and "generated_text" in result[0]:
+            if output:
                 st.success("Result")
-                st.write(result[0]["generated_text"])
-
-            # MODEL LOADING CASE
-            elif isinstance(result, dict) and "error" in result:
-                if "loading" in result["error"].lower():
-                    st.warning("Model is warming up. Please click Generate again.")
-                else:
-                    st.error("AI error: " + result["error"])
-
+                st.write(output)
             else:
-                st.error("Unexpected AI response format.")
+                st.warning("AI responded but returned no text. Please try again.")
 
         except Exception as e:
-            st.error("AI service unreachable. Please try again later.")
+            st.error("AI service is temporarily busy. Please try again later.")

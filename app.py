@@ -46,9 +46,21 @@ if st.button("Generate"):
         else:
             prompt = f"Create 5 quiz questions with answers from this topic:\n{text}"
 
-        with st.spinner("AI is thinking..."):
-            model = genai.GenerativeModel("gemini-1.5-flash")
-            response = model.generate_content(prompt)
+        with st.spinner("Generating answer (may take a few seconds)..."):
 
-        st.success("Result")
-        st.write(response.text)
+          model = genai.GenerativeModel(
+    model_name="gemini-1.0-pro",
+    generation_config={
+        "max_output_tokens": 300,
+        "temperature": 0.5
+    }
+)
+
+try:
+    response = model.generate_content(prompt)
+    st.success("Result")
+    st.write(response.text)
+
+except Exception:
+    st.error("AI is busy right now. Please try again in a few seconds.")
+

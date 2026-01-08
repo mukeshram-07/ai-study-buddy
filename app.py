@@ -4,11 +4,14 @@ import os
 import time
 
 # ---------------------------------
-# Hugging Face API details
+# Hugging Face Router API details
 # ---------------------------------
-API_URL = "https://api-inference.huggingface.co/models/google/flan-t5-base"
+MODEL_ID = "google/flan-t5-base"
+API_URL = f"https://router.huggingface.co/hf-inference/models/{MODEL_ID}"
+
 HEADERS = {
-    "Authorization": f"Bearer {os.getenv('HF_API_KEY')}"
+    "Authorization": f"Bearer {os.getenv('HF_API_KEY')}",
+    "Content-Type": "application/json"
 }
 
 # ---------------------------------
@@ -83,7 +86,7 @@ if st.button("Generate"):
     }
 
     with st.spinner("Generating response..."):
-        for attempt in range(3):  # retry logic
+        try:
             response = requests.post(
                 API_URL,
                 headers=HEADERS,
@@ -97,14 +100,16 @@ if st.button("Generate"):
             if isinstance(result, list) and "generated_text" in result[0]:
                 st.success("Result")
                 st.write(result[0]["generated_text"])
-                break
 
             # MODEL LOADING CASE
             elif isinstance(result, dict) and "error" in result:
                 if "loading" in result["error"].lower():
-                    time.sleep(5)  # wait and retry
+                    st.warning("Model is warming up. Please click Generate again.")
                 else:
                     st.error("AI error: " + result["error"])
-                    break
-        else:
-            st.error("AI is still warming up. Please try again once more.")
+
+            else:
+                st.error("Unexpected AI response format.")
+
+        except Exception as e:
+            st.error("AI service unreachable. Please try again later.")

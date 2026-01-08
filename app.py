@@ -11,7 +11,7 @@ st.set_page_config(
 )
 
 # -------------------------------------------------
-# GLOBAL THEME (DARK NAVY + GREEN, PROFESSIONAL)
+# GLOBAL THEME (DARK NAVY + GREEN)
 # -------------------------------------------------
 st.markdown("""
 <style>
@@ -21,29 +21,24 @@ st.markdown("""
     background-color: #0F172A;
 }
 
-/* Sidebar */
-section[data-testid="stSidebar"] {
+/* Top menu bar */
+.top-nav {
+    display: flex;
+    gap: 2rem;
+    padding: 1rem 2rem;
     background-color: #020617;
-    border-right: 1px solid #1F2937;
+    border-bottom: 1px solid #1F2937;
 }
 
-/* Sidebar buttons */
-.sidebar-btn {
-    display: block;
-    width: 100%;
-    padding: 0.6rem 1rem;
-    margin-bottom: 0.5rem;
-    text-align: left;
-    background-color: transparent;
-    color: #E5E7EB;
-    border-radius: 10px;
-    border: none;
-    font-weight: 500;
-    cursor: pointer;
+.top-nav a {
+    color: #9CA3AF;
+    font-weight: 600;
+    text-decoration: none;
+    font-size: 15px;
 }
 
-.sidebar-btn:hover {
-    background-color: #111827;
+.top-nav a:hover {
+    color: #22C55E;
 }
 
 /* Main content card */
@@ -51,7 +46,7 @@ section[data-testid="stSidebar"] {
     background-color: #111827;
     border-radius: 20px;
     padding: 2.5rem;
-    margin: 1rem;
+    margin: 2rem;
     box-shadow: 0 20px 40px rgba(0,0,0,0.45);
 }
 
@@ -76,7 +71,7 @@ textarea, select {
 /* Primary button */
 .stButton > button {
     background-color: #22C55E;
-    color: #FFFFFF; /* FIXED: white text */
+    color: #FFFFFF;
     border-radius: 28px;
     padding: 0.6rem 2.2rem;
     font-weight: 600;
@@ -111,35 +106,25 @@ if not api_key:
 client = Groq(api_key=api_key)
 
 # -------------------------------------------------
-# SIDEBAR (PROFESSIONAL NAVIGATION)
+# TOP NAVIGATION (CHATGPT STYLE)
 # -------------------------------------------------
-st.sidebar.markdown("## Study Buddy")
-
-page = st.sidebar.selectbox(
-    "Navigation",
-    [
-        "Home",
-        "Explain Topic",
-        "Summarize Notes",
-        "Generate Quiz",
-        "About"
-    ]
+menu = st.selectbox(
+    "",
+    ["Home", "Explain Topic", "Summarize Notes", "Generate Quiz", "About"],
+    index=0
 )
 
 # -------------------------------------------------
-# HOME
+# PAGE CONTENT
 # -------------------------------------------------
-if page == "Home":
-    st.markdown("## Welcome")
+if menu == "Home":
+    st.markdown("## Study Buddy")
     st.write(
-        "Study Buddy is an AI-powered learning assistant designed to help students "
+        "Study Buddy is an AI-powered academic assistant that helps students "
         "understand concepts, summarize study material, and generate quizzes efficiently."
     )
 
-# -------------------------------------------------
-# EXPLAIN TOPIC
-# -------------------------------------------------
-elif page == "Explain Topic":
+elif menu == "Explain Topic":
     st.markdown("## Explain Topic")
     text = st.text_area("Enter a topic or question")
 
@@ -160,10 +145,7 @@ elif page == "Explain Topic":
             st.success("Explanation")
             st.write(completion.choices[0].message.content)
 
-# -------------------------------------------------
-# SUMMARIZE NOTES
-# -------------------------------------------------
-elif page == "Summarize Notes":
+elif menu == "Summarize Notes":
     st.markdown("## Summarize Notes")
     text = st.text_area("Paste your notes here")
 
@@ -184,10 +166,7 @@ elif page == "Summarize Notes":
             st.success("Summary")
             st.write(completion.choices[0].message.content)
 
-# -------------------------------------------------
-# GENERATE QUIZ
-# -------------------------------------------------
-elif page == "Generate Quiz":
+elif menu == "Generate Quiz":
     st.markdown("## Generate Quiz")
     text = st.text_area("Enter a topic")
 
@@ -208,18 +187,15 @@ elif page == "Generate Quiz":
             st.success("Quiz")
             st.write(completion.choices[0].message.content)
 
-# -------------------------------------------------
-# ABOUT
-# -------------------------------------------------
-elif page == "About":
+elif menu == "About":
     st.markdown("## About Study Buddy")
     st.write(
         """
-        Study Buddy is a web-based academic support system developed using:
-        
+        Study Buddy is a web-based AI learning assistant built using:
+
         - Streamlit for the user interface  
         - Groq (LLaMA 3.1) for AI processing  
 
-        The platform focuses on clarity, simplicity, and effective learning.
+        The platform follows a clean, professional design inspired by modern AI tools.
         """
     )

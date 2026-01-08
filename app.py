@@ -1,13 +1,12 @@
 import streamlit as st
 from groq import Groq
 import os
-import re
 import PyPDF2
 
 # ---------------------------------
-# Page config
+# Page setup
 # ---------------------------------
-st.set_page_config(page_title="Study Buddy – File Q&A", layout="centered")
+st.set_page_config(page_title="Study Buddy – Document AI", layout="centered")
 
 # ---------------------------------
 # Load API key
@@ -27,85 +26,70 @@ def extract_text(file):
         reader = PyPDF2.PdfReader(file)
         text = ""
         for page in reader.pages:
-            text += page.extract_text() + "\n"
+            if page.extract_text():
+                text += page.extract_text() + "\n"
         return text
 
     elif file.type == "text/plain":
         return file.read().decode("utf-8")
 
-    else:
-        return ""
-
-# ---------------------------------
-# Helper: Extract questions
-# ---------------------------------
-def extract_questions(text):
-    lines = text.split("\n")
-    questions = []
-
-    for line in lines:
-        line = line.strip()
-        if (
-            line.endswith("?")
-            or line.lower().startswith("what")
-            or line.lower().startswith("explain")
-            or line.lower().startswith("define")
-            or line.lower().startswith("discuss")
-        ):
-            questions.append(line)
-
-    return questions
+    return ""
 
 # ---------------------------------
 # UI
 # ---------------------------------
-st.title("Study Buddy – File Question Answering")
-st.write("Upload a file and get answers to all questions automatically.")
+st.title("Study Buddy – Document Assistant")
+st.write("Upload a document and choose what you want to do.")
 
 uploaded_file = st.file_uploader(
     "Upload PDF or TXT file",
     type=["pdf", "txt"]
 )
 
+task = st.selectbox(
+    "Choose an action",
+    ["Explain Content", "Summarize Document", "Generate 3 Quiz Questions"]
+)
+
 # ---------------------------------
 # Main logic
 # ---------------------------------
 if uploaded_file:
-    with st.spinner("Reading file..."):
-        content = extract_text(uploaded_file)
+    with st.spinner("Reading document..."):
+        document_text = extract_text(uploaded_file)
 
-    if not content.strip():
-        st.error("Could not extract text from file.")
+    if not document_text.strip():
+        st.error("Unable to extract text from the document.")
         st.stop()
 
-    questions = extract_questions(content)
-
-    if not questions:
-        st.warning("No questions found in the file.")
-        st.stop()
-
-    st.success(f"Found {len(questions)} questions.")
-
-    if st.button("Answer All Questions"):
-        for i, q in enumerate(questions, start=1):
-            st.markdown(f"### Question {i}")
-            st.write(q)
-
+    if st.button("Process Document"):
+        if task == "Explain Content":
             prompt = f"""
-Answer the following academic question clearly and concisely:
+Explain the following content in simple student-friendly language:
 
-Question:
-{q}
+{document_text}
 """
 
-            with st.spinner("Generating answer..."):
-                completion = client.chat.completions.create(
-                    model="llama-3.1-8b-instant",
-                    messages=[{"role": "user", "content": prompt}],
-                    max_tokens=300
-                )
+        elif task == "Summarize Document":
+            prompt = f"""
+Summarize the following document clearly and concisely:
 
-            answer = completion.choices[0].message.content
-            st.markdown("**Answer:**")
-            st.write(answer)
-            st.divider()
+{document_text}
+"""
+
+        else:  # Generate 3 Quiz Questions
+            prompt = f"""
+Create exactly 3 quiz questions with answers from the following document:
+
+{document_text}
+"""
+
+        with st.spinner("Generating response..."):
+            completion = client.chat.completions.create(
+                model="llama-3.1-8b-instant",
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=400
+            )
+
+        st.success("Result")
+        st.write(completion.choices[0].message.content)

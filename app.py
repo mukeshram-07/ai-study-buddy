@@ -3,7 +3,7 @@ from groq import Groq
 import os
 
 # -------------------------------------------------
-# Page config
+# Page configuration
 # -------------------------------------------------
 st.set_page_config(
     page_title="Study Buddy",
@@ -11,7 +11,7 @@ st.set_page_config(
 )
 
 # -------------------------------------------------
-# GLOBAL THEME (DARK NAVY + GREEN)
+# GLOBAL THEME (DARK NAVY + GREEN, PROFESSIONAL)
 # -------------------------------------------------
 st.markdown("""
 <style>
@@ -27,12 +27,32 @@ section[data-testid="stSidebar"] {
     border-right: 1px solid #1F2937;
 }
 
-/* Main card */
+/* Sidebar buttons */
+.sidebar-btn {
+    display: block;
+    width: 100%;
+    padding: 0.6rem 1rem;
+    margin-bottom: 0.5rem;
+    text-align: left;
+    background-color: transparent;
+    color: #E5E7EB;
+    border-radius: 10px;
+    border: none;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.sidebar-btn:hover {
+    background-color: #111827;
+}
+
+/* Main content card */
 .block-container {
     background-color: #111827;
     border-radius: 20px;
     padding: 2.5rem;
     margin: 1rem;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.45);
 }
 
 /* Headings */
@@ -53,20 +73,20 @@ textarea, select {
     border: 1px solid #1F2937 !important;
 }
 
-/* Buttons */
+/* Primary button */
 .stButton > button {
     background-color: #22C55E;
-    color: #022C22;
-    border-radius: 30px;
+    color: #FFFFFF; /* FIXED: white text */
+    border-radius: 28px;
     padding: 0.6rem 2.2rem;
-    font-weight: 700;
+    font-weight: 600;
     border: none;
     transition: all 0.3s ease;
 }
 
 .stButton > button:hover {
     background-color: #16A34A;
-    transform: scale(1.05);
+    transform: scale(1.04);
 }
 
 /* Success box */
@@ -91,36 +111,46 @@ if not api_key:
 client = Groq(api_key=api_key)
 
 # -------------------------------------------------
-# SIDEBAR MENU
+# SIDEBAR (PROFESSIONAL NAVIGATION)
 # -------------------------------------------------
-st.sidebar.markdown("## 📘 Study Buddy")
+st.sidebar.markdown("## Study Buddy")
 
-menu = st.sidebar.radio(
+page = st.sidebar.selectbox(
     "Navigation",
-    ["🏠 Home", "🧠 Explain Topic", "✍️ Summarize Notes", "❓ Generate Quiz", "ℹ️ About"]
+    [
+        "Home",
+        "Explain Topic",
+        "Summarize Notes",
+        "Generate Quiz",
+        "About"
+    ]
 )
 
 # -------------------------------------------------
 # HOME
 # -------------------------------------------------
-if menu == "🏠 Home":
-    st.markdown("## Welcome 👋")
+if page == "Home":
+    st.markdown("## Welcome")
     st.write(
-        "Study Buddy is an AI-powered learning assistant that helps students "
-        "understand concepts, summarize notes, and generate quizzes instantly."
+        "Study Buddy is an AI-powered learning assistant designed to help students "
+        "understand concepts, summarize study material, and generate quizzes efficiently."
     )
 
 # -------------------------------------------------
 # EXPLAIN TOPIC
 # -------------------------------------------------
-elif menu == "🧠 Explain Topic":
-    st.markdown("## 🧠 Explain Topic")
-    text = st.text_area("Enter a topic")
+elif page == "Explain Topic":
+    st.markdown("## Explain Topic")
+    text = st.text_area("Enter a topic or question")
 
-    if st.button("Explain"):
+    if st.button("Generate Explanation"):
+        if not text.strip():
+            st.warning("Please enter a topic.")
+            st.stop()
+
         prompt = f"Explain this topic in simple student-friendly language:\n{text}"
 
-        with st.spinner("Thinking..."):
+        with st.spinner("Processing..."):
             completion = client.chat.completions.create(
                 model="llama-3.1-8b-instant",
                 messages=[{"role": "user", "content": prompt}],
@@ -133,14 +163,18 @@ elif menu == "🧠 Explain Topic":
 # -------------------------------------------------
 # SUMMARIZE NOTES
 # -------------------------------------------------
-elif menu == "✍️ Summarize Notes":
-    st.markdown("## ✍️ Summarize Notes")
-    text = st.text_area("Paste your notes")
+elif page == "Summarize Notes":
+    st.markdown("## Summarize Notes")
+    text = st.text_area("Paste your notes here")
 
-    if st.button("Summarize"):
+    if st.button("Generate Summary"):
+        if not text.strip():
+            st.warning("Please enter notes.")
+            st.stop()
+
         prompt = f"Summarize the following notes clearly:\n{text}"
 
-        with st.spinner("Summarizing..."):
+        with st.spinner("Processing..."):
             completion = client.chat.completions.create(
                 model="llama-3.1-8b-instant",
                 messages=[{"role": "user", "content": prompt}],
@@ -153,14 +187,18 @@ elif menu == "✍️ Summarize Notes":
 # -------------------------------------------------
 # GENERATE QUIZ
 # -------------------------------------------------
-elif menu == "❓ Generate Quiz":
-    st.markdown("## ❓ Generate Quiz")
-    text = st.text_area("Enter topic")
+elif page == "Generate Quiz":
+    st.markdown("## Generate Quiz")
+    text = st.text_area("Enter a topic")
 
     if st.button("Generate Quiz"):
+        if not text.strip():
+            st.warning("Please enter a topic.")
+            st.stop()
+
         prompt = f"Create 5 quiz questions with answers from this topic:\n{text}"
 
-        with st.spinner("Generating quiz..."):
+        with st.spinner("Processing..."):
             completion = client.chat.completions.create(
                 model="llama-3.1-8b-instant",
                 messages=[{"role": "user", "content": prompt}],
@@ -173,15 +211,15 @@ elif menu == "❓ Generate Quiz":
 # -------------------------------------------------
 # ABOUT
 # -------------------------------------------------
-elif menu == "ℹ️ About":
-    st.markdown("## ℹ️ About Study Buddy")
+elif page == "About":
+    st.markdown("## About Study Buddy")
     st.write(
         """
-        **Study Buddy** is a web-based AI learning assistant built using:
-        - Streamlit (Frontend)
-        - Groq LLaMA 3.1 (AI Engine)
+        Study Buddy is a web-based academic support system developed using:
         
-        The system helps students learn efficiently by providing
-        explanations, summaries, and quizzes on demand.
+        - Streamlit for the user interface  
+        - Groq (LLaMA 3.1) for AI processing  
+
+        The platform focuses on clarity, simplicity, and effective learning.
         """
     )

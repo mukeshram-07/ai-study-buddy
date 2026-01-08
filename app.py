@@ -2,22 +2,22 @@ import streamlit as st
 import google.generativeai as genai
 import os
 
-# -------------------------------
+# ---------------------------------
 # Configure Gemini API
-# -------------------------------
+# ---------------------------------
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
-# -------------------------------
-# Page configuration
-# -------------------------------
+# ---------------------------------
+# Page config
+# ---------------------------------
 st.set_page_config(
     page_title="AI-Powered Study Buddy",
     layout="centered"
 )
 
-# -------------------------------
-# Animated background (CSS)
-# -------------------------------
+# ---------------------------------
+# Animated background
+# ---------------------------------
 st.markdown("""
 <style>
 body {
@@ -33,9 +33,9 @@ body {
 </style>
 """, unsafe_allow_html=True)
 
-# -------------------------------
+# ---------------------------------
 # UI
-# -------------------------------
+# ---------------------------------
 st.title("🤖 AI-Powered Study Buddy (Gemini)")
 st.write("Explain topics • Summarize notes • Generate quizzes")
 
@@ -50,9 +50,9 @@ text = st.text_area(
     placeholder="Example: What is Artificial Intelligence?"
 )
 
-# -------------------------------
+# ---------------------------------
 # Button action
-# -------------------------------
+# ---------------------------------
 if st.button("Generate"):
     if not text.strip():
         st.warning("Please enter some text.")
@@ -62,7 +62,7 @@ if st.button("Generate"):
         st.warning("Input too long. Please limit to 1200 characters.")
         st.stop()
 
-    # Create prompt
+    # Prompt creation
     if option == "Explain Topic":
         prompt = f"Explain the following topic in simple student-friendly language:\n{text}"
     elif option == "Summarize Notes":
@@ -70,24 +70,28 @@ if st.button("Generate"):
     else:
         prompt = f"Create 5 quiz questions with answers from the following topic:\n{text}"
 
-    # Gemini model (stable + fast)
-    model = genai.GenerativeModel(
-        model_name="gemini-1.0-pro",
-        generation_config={
-            "max_output_tokens": 300,
-            "temperature": 0.4
-        }
-    )
+    # ---------------------------------
+    # Gemini model (FAST & STABLE)
+    # ---------------------------------
+    model = genai.GenerativeModel("gemini-1.5-flash")
 
     with st.spinner("Generating response..."):
         try:
-            response = model.generate_content(prompt)
+            response = model.generate_content(
+                prompt,
+                generation_config={
+                    "max_output_tokens": 300,
+                    "temperature": 0.4
+                }
+            )
 
-            if response and hasattr(response, "text") and response.text:
+            output = getattr(response, "text", "").strip()
+
+            if output:
                 st.success("Result")
-                st.write(response.text)
+                st.write(output)
             else:
-                st.warning("AI returned no output. Please try again with shorter input.")
+                st.warning("AI responded but returned no text. Please try again.")
 
-        except Exception:
-            st.error("AI service is busy or temporarily unavailable. Please try again later.")
+        except Exception as e:
+            st.error("AI service is temporarily busy. Please try again later.")

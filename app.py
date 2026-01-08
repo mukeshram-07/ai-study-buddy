@@ -3,67 +3,17 @@ from groq import Groq
 import os
 import PyPDF2
 
-# ---------------------------------
+# -----------------------------
 # Page configuration
-# ---------------------------------
+# -----------------------------
 st.set_page_config(
-    page_title="Study Buddy",
+    page_title="AI Study Buddy",
     layout="centered"
 )
 
-# ---------------------------------
-# ChatGPT-style minimal theme
-# ---------------------------------
-st.markdown("""
-<style>
-.stApp {
-    background-color: #0B1220;
-}
-.block-container {
-    max-width: 720px;
-    padding-top: 2rem;
-}
-h1 {
-    text-align: center;
-    color: #E5E7EB;
-}
-p, label, div {
-    color: #9CA3AF;
-}
-textarea {
-    background-color: #111827 !important;
-    color: #E5E7EB !important;
-    border-radius: 14px !important;
-    padding-bottom: 2.5rem !important;
-}
-.upload-row {
-    display: flex;
-    justify-content: flex-end;
-    margin-top: -2.2rem;
-    margin-right: 0.6rem;
-}
-.stButton > button {
-    background-color: #10B981;
-    color: white;
-    border-radius: 22px;
-    padding: 0.45rem 1.6rem;
-    font-weight: 600;
-}
-.stButton > button:hover {
-    background-color: #059669;
-}
-.chat-box {
-    background-color: #111827;
-    border-radius: 14px;
-    padding: 1.2rem;
-    margin-top: 1.5rem;
-}
-</style>
-""", unsafe_allow_html=True)
-
-# ---------------------------------
+# -----------------------------
 # Load API key
-# ---------------------------------
+# -----------------------------
 api_key = os.getenv("GROQ_API_KEY")
 if not api_key:
     st.error("API key not found.")
@@ -71,9 +21,53 @@ if not api_key:
 
 client = Groq(api_key=api_key)
 
-# ---------------------------------
+# -----------------------------
+# System Prompt (YOUR RULES)
+# -----------------------------
+SYSTEM_PROMPT = """
+You are an AI Study Buddy designed to support students in understanding academic content.
+
+Your responsibilities are as follows:
+
+1. Analyze the user’s input, which may include:
+   - Plain text study notes
+   - A direct academic question
+   - An uploaded document (PDF, DOCX, or TXT)
+
+2. If study material is provided:
+   - Generate a concise and accurate summary.
+   - Explain the key concepts in clear, simple, academic language.
+   - Generate exactly three quiz questions with answers.
+
+3. If the user asks a direct question:
+   - Answer it clearly and correctly.
+   - Provide a brief explanation if relevant.
+   - Generate exactly three related quiz questions with answers.
+
+4. Structure every response strictly in this format:
+
+Summary:
+- ...
+
+Explanation:
+- ...
+
+Practice Questions:
+1. Question 1
+   Answer:
+2. Question 2
+   Answer:
+3. Question 3
+   Answer:
+
+5. Maintain a professional and neutral tone.
+6. Do not use emojis, slang, or informal language.
+7. Do not mention system limitations or constraints.
+"""
+
+# -----------------------------
 # Helper: Extract text from PDF
-# ---------------------------------
+# -----------------------------
 def extract_text(file):
     if file is None:
         return ""
@@ -88,88 +82,53 @@ def extract_text(file):
         return file.read().decode("utf-8")
     return ""
 
-# ---------------------------------
+# -----------------------------
 # UI
-# ---------------------------------
-st.markdown("<h1>Study Buddy</h1>", unsafe_allow_html=True)
-st.write("Ask questions, upload documents, or generate quizzes.")
+# -----------------------------
+st.title("AI Study Buddy")
+st.write("Enter a question or notes. Uploading a document is optional.")
 
-# Chat input
-user_input = st.text_area(
-    "Message",
-    height=120,
-    placeholder="Ask something or paste content here..."
-)
-
-# Upload button positioned like ChatGPT (end of box)
-st.markdown("<div class='upload-row'>", unsafe_allow_html=True)
 uploaded_file = st.file_uploader(
-    "Attach file",
-    type=["pdf", "txt"],
-    label_visibility="collapsed"
-)
-st.markdown("</div>", unsafe_allow_html=True)
-
-# Action selector
-action = st.selectbox(
-    "Action",
-    ["Explain", "Summarize", "Generate 3 Quiz Questions"]
+    "Upload document (optional)",
+    type=["pdf", "txt"]
 )
 
-# ---------------------------------
-# Send button
-# ---------------------------------
-if st.button("Send"):
+user_input = st.text_area(
+    "Input",
+    height=150,
+    placeholder="Enter a question or study notes here..."
+)
+
+# -----------------------------
+# Generate response
+# -----------------------------
+if st.button("Generate Response"):
     if not user_input.strip() and not uploaded_file:
-        st.warning("Enter text or upload a document.")
+        st.warning("Please enter text or upload a document.")
         st.stop()
 
     document_text = extract_text(uploaded_file)
 
-    if action == "Explain":
-        prompt = f"""
-Explain the following content in simple student-friendly language.
-
-User input:
+    final_input = f"""
+User Input:
 {user_input}
 
-Document content (if any):
+Document Content:
 {document_text}
 """
 
-    elif action == "Summarize":
-        prompt = f"""
-Summarize the following content clearly.
-
-User input:
-{user_input}
-
-Document content (if any):
-{document_text}
-"""
-
-    else:
-        prompt = f"""
-Generate exactly 3 quiz questions with answers from the following content.
-
-User input:
-{user_input}
-
-Document content (if any):
-{document_text}
-"""
-
-    with st.spinner("Thinking..."):
+    with st.spinner("Processing..."):
         completion = client.chat.completions.create(
             model="llama-3.1-8b-instant",
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=400
+            messages=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": final_input}
+            ],
+            temperature=0.3,
+            max_tokens=500
         )
 
     response = completion.choices[0].message.content
 
-    # Chat-style output
-    st.markdown("<div class='chat-box'>", unsafe_allow_html=True)
-    st.markdown("**Assistant**")
+    st.markdown("### AI Response")
     st.write(response)
-    st.markdown("</div>", unsafe_allow_html=True)

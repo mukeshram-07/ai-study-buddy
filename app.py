@@ -25,7 +25,8 @@ if st.button("Generate"):
             prompt = f"Create 5 MCQs with answers from the following content:\n{text}"
 
         response = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model="gpt-3.5-turbo",
+
             messages=[{"role": "user", "content": prompt}]
         )
 

@@ -1,47 +1,51 @@
 import streamlit as st
-from transformers import pipeline
+import openai
+import os
 
-st.set_page_config(page_title="AI Study Buddy", layout="wide")
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
-@st.cache_resource
-def load_model():
-    return pipeline(
-        "text2text-generation",
-        model="study_buddy_model"
-    )
+st.set_page_config(page_title="AI Study Buddy", layout="centered")
 
-model = load_model()
+st.markdown("""
+<style>
+body {
+    background: linear-gradient(-45deg, #141e30, #243b55);
+    background-size: 400% 400%;
+    animation: bg 10s ease infinite;
+}
+@keyframes bg {
+    0% {background-position:0% 50%;}
+    50% {background-position:100% 50%;}
+    100% {background-position:0% 50%;}
+}
+</style>
+""", unsafe_allow_html=True)
 
-st.title("📘 AI-Powered Study Buddy")
-st.write("Explain topics, summarize notes, and generate quizzes.")
+st.title("AI-Powered Study Buddy")
+st.write("Explain • Summarize • Quiz")
 
-text = st.text_area("Enter your topic or notes")
-
-option = st.selectbox(
-    "Choose what you want to do",
-    ["Explain Simply", "Summarize Notes", "Generate Quiz"]
+choice = st.selectbox(
+    "Select option",
+    ["Explain Topic", "Summarize Notes", "Generate Quiz"]
 )
 
+text = st.text_area("Enter text")
+
 if st.button("Generate"):
-    with st.spinner("AI is working..."):
-
-        if option == "Explain Simply":
-            prompt = f"Explain the following topic in simple terms for a student:\n{text}"
-
-        elif option == "Summarize Notes":
-            prompt = f"Summarize the following content in clear, simple sentences:\n{text}"
-
+    if text:
+        if choice == "Explain Topic":
+            prompt = f"Explain simply: {text}"
+        elif choice == "Summarize Notes":
+            prompt = f"Summarize: {text}"
         else:
-            prompt = f"Create 5 quiz questions with answers from the following content:\n{text}"
+            prompt = f"Create 5 quiz questions with answers: {text}"
 
-        output = model(
-            prompt,
-            max_length=200,
-            min_length=30,
-            num_beams=4,
-            repetition_penalty=2.0,
-            early_stopping=True
+        response = openai.ChatCompletion.create(
+            model="gpt-4",
+            messages=[{"role": "user", "content": prompt}]
         )
 
-        st.success("Done!")
-        st.write(output[0]["generated_text"])
+        st.success("Result")
+        st.write(response.choices[0].message["content"])
+    else:
+        st.warning("Enter some text")

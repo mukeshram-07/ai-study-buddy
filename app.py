@@ -49,18 +49,24 @@ if st.button("Generate"):
         with st.spinner("Generating answer (may take a few seconds)..."):
 
           model = genai.GenerativeModel(
+    model = genai.GenerativeModel(
     model_name="gemini-1.0-pro",
     generation_config={
         "max_output_tokens": 300,
-        "temperature": 0.5
+        "temperature": 0.4
     }
 )
 
 try:
     response = model.generate_content(prompt)
-    st.success("Result")
-    st.write(response.text)
 
-except Exception:
-    st.error("AI is busy right now. Please try again in a few seconds.")
+    if response and response.text:
+        st.success("Result")
+        st.write(response.text)
+    else:
+        st.warning("AI returned no content. Please try again with shorter input.")
+
+except Exception as e:
+    st.error("AI service is temporarily unavailable. Please try again later.")
+
 

@@ -1,11 +1,14 @@
 import streamlit as st
-import openai
 import os
+from openai import OpenAI
 
-openai.api_key = os.getenv("OPENAI_API_KEY")
+# Create OpenAI client (NEW METHOD)
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
+# Page config
 st.set_page_config(page_title="AI Study Buddy", layout="centered")
 
+# Animated background
 st.markdown("""
 <style>
 body {
@@ -21,31 +24,35 @@ body {
 </style>
 """, unsafe_allow_html=True)
 
+# UI
 st.title("AI-Powered Study Buddy")
-st.write("Explain • Summarize • Quiz")
+st.write("Explain topics • Summarize notes • Generate quizzes")
 
-choice = st.selectbox(
-    "Select option",
+option = st.selectbox(
+    "Choose an option",
     ["Explain Topic", "Summarize Notes", "Generate Quiz"]
 )
 
-text = st.text_area("Enter text")
+user_input = st.text_area("Enter your text")
 
 if st.button("Generate"):
-    if text:
-        if choice == "Explain Topic":
-            prompt = f"Explain simply: {text}"
-        elif choice == "Summarize Notes":
-            prompt = f"Summarize: {text}"
+    if user_input.strip() == "":
+        st.warning("Please enter some text")
+    else:
+        if option == "Explain Topic":
+            prompt = f"Explain this topic in simple student language:\n{user_input}"
+        elif option == "Summarize Notes":
+            prompt = f"Summarize these notes clearly:\n{user_input}"
         else:
-            prompt = f"Create 5 quiz questions with answers: {text}"
+            prompt = f"Create 5 quiz questions with answers from:\n{user_input}"
 
-        response = openai.ChatCompletion.create(
-            model="gpt-4",
-            messages=[{"role": "user", "content": prompt}]
-        )
+        with st.spinner("AI is thinking..."):
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "user", "content": prompt}
+                ]
+            )
 
         st.success("Result")
-        st.write(response.choices[0].message["content"])
-    else:
-        st.warning("Enter some text")
+        st.write(response.choices[0].message.content)

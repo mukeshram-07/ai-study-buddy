@@ -1,9 +1,9 @@
 import streamlit as st
+import google.generativeai as genai
 import os
-from openai import OpenAI
 
-# Create OpenAI client (NEW METHOD)
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+# Configure Gemini API
+genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
 # Page config
 st.set_page_config(page_title="AI Study Buddy", layout="centered")
@@ -12,47 +12,43 @@ st.set_page_config(page_title="AI Study Buddy", layout="centered")
 st.markdown("""
 <style>
 body {
-    background: linear-gradient(-45deg, #141e30, #243b55);
+    background: linear-gradient(-45deg, #0f2027, #203a43, #2c5364);
     background-size: 400% 400%;
-    animation: bg 10s ease infinite;
+    animation: gradient 10s ease infinite;
 }
-@keyframes bg {
-    0% {background-position:0% 50%;}
-    50% {background-position:100% 50%;}
-    100% {background-position:0% 50%;}
+@keyframes gradient {
+    0% {background-position: 0% 50%;}
+    50% {background-position: 100% 50%;}
+    100% {background-position: 0% 50%;}
 }
 </style>
 """, unsafe_allow_html=True)
 
 # UI
-st.title("AI-Powered Study Buddy")
+st.title("AI-Powered Study Buddy (Gemini)")
 st.write("Explain topics • Summarize notes • Generate quizzes")
 
 option = st.selectbox(
-    "Choose an option",
+    "Choose a feature",
     ["Explain Topic", "Summarize Notes", "Generate Quiz"]
 )
 
-user_input = st.text_area("Enter your text")
+text = st.text_area("Enter your content")
 
 if st.button("Generate"):
-    if user_input.strip() == "":
+    if text.strip() == "":
         st.warning("Please enter some text")
     else:
         if option == "Explain Topic":
-            prompt = f"Explain this topic in simple student language:\n{user_input}"
+            prompt = f"Explain this topic in simple student-friendly language:\n{text}"
         elif option == "Summarize Notes":
-            prompt = f"Summarize these notes clearly:\n{user_input}"
+            prompt = f"Summarize the following notes clearly:\n{text}"
         else:
-            prompt = f"Create 5 quiz questions with answers from:\n{user_input}"
+            prompt = f"Create 5 quiz questions with answers from this topic:\n{text}"
 
         with st.spinner("AI is thinking..."):
-            response = client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[
-                    {"role": "user", "content": prompt}
-                ]
-            )
+            model = genai.GenerativeModel("gemini-1.5-flash")
+            response = model.generate_content(prompt)
 
         st.success("Result")
-        st.write(response.choices[0].message.content)
+        st.write(response.text)

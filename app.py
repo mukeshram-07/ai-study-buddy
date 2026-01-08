@@ -1,17 +1,19 @@
 import streamlit as st
-import google.generativeai as genai
+from groq import Groq
 import os
-import time
 
 # -----------------------------
-# Gemini API
+# Configure Groq client
 # -----------------------------
-genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
 # -----------------------------
 # Page config
 # -----------------------------
-st.set_page_config(page_title="AI Study Buddy", layout="centered")
+st.set_page_config(
+    page_title="AI-Powered Study Buddy (Groq)",
+    layout="centered"
+)
 
 # -----------------------------
 # Animated background
@@ -19,7 +21,7 @@ st.set_page_config(page_title="AI Study Buddy", layout="centered")
 st.markdown("""
 <style>
 body {
-    background: linear-gradient(-45deg, #0f2027, #203a43, #2c5364);
+    background: linear-gradient(-45deg, #1f4037, #99f2c8);
     background-size: 400% 400%;
     animation: bg 10s ease infinite;
 }
@@ -34,7 +36,7 @@ body {
 # -----------------------------
 # UI
 # -----------------------------
-st.title("🤖 AI-Powered Study Buddy")
+st.title("🤖 AI-Powered Study Buddy (Groq)")
 st.write("Explain topics • Summarize notes • Generate quizzes")
 
 option = st.selectbox(
@@ -42,74 +44,47 @@ option = st.selectbox(
     ["Explain Topic", "Summarize Notes", "Generate Quiz"]
 )
 
-text = st.text_area("Enter your content")
+text = st.text_area(
+    "Enter your content",
+    height=180,
+    placeholder="Example: Define Artificial Intelligence"
+)
 
 # -----------------------------
-# Mock fallback AI (LOCAL)
-# -----------------------------
-def mock_ai(option, text):
-    if option == "Explain Topic":
-        return f"""
-**Explanation (Demo Mode):**
-
-{text} refers to a concept in computer science where machines are designed
-to simulate human intelligence such as learning, reasoning, and problem-solving.
-"""
-    elif option == "Summarize Notes":
-        return f"""
-**Summary (Demo Mode):**
-
-{text[:150]}...
-"""
-    else:
-        return """
-**Quiz (Demo Mode):**
-1. What is AI?
-2. Name one application of AI.
-3. What is machine learning?
-4. Is AI rule-based or learning-based?
-5. Give one real-world example of AI.
-"""
-
-# -----------------------------
-# Button
+# Button logic
 # -----------------------------
 if st.button("Generate"):
     if not text.strip():
-        st.warning("Please enter text")
+        st.warning("Please enter some text.")
         st.stop()
 
-    if len(text) > 1200:
+    if len(text) > 1500:
         st.warning("Input too long. Please shorten it.")
         st.stop()
 
-    # Prompt
     if option == "Explain Topic":
-        prompt = f"Explain simply:\n{text}"
+        prompt = f"Explain this topic in simple student-friendly language:\n{text}"
     elif option == "Summarize Notes":
-        prompt = f"Summarize:\n{text}"
+        prompt = f"Summarize the following notes clearly:\n{text}"
     else:
-        prompt = f"Create 5 quiz questions with answers:\n{text}"
-
-    model = genai.GenerativeModel("gemini-1.5-flash")
+        prompt = f"Create 5 quiz questions with answers from the following topic:\n{text}"
 
     with st.spinner("Generating response..."):
         try:
-            response = model.generate_content(
-                prompt,
-                generation_config={"max_output_tokens": 300}
+            completion = client.chat.completions.create(
+                model="llama3-8b-8192",
+                messages=[
+                    {"role": "system", "content": "You are a helpful study assistant."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.4,
+                max_tokens=300
             )
 
-            output = getattr(response, "text", "").strip()
+            output = completion.choices[0].message.content
 
-            if output:
-                st.success("Result (Live AI)")
-                st.write(output)
-            else:
-                raise Exception("Empty response")
+            st.success("Result")
+            st.write(output)
 
-        except Exception:
-            time.sleep(1)
-            st.warning("Live AI busy — switched to demo mode")
-            st.success("Result (Demo AI)")
-            st.write(mock_ai(option, text))
+        except Exception as e:
+            st.error("AI service error. Please try again later.")

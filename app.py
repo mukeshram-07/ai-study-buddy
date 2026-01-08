@@ -78,7 +78,7 @@ if st.button("Generate"):
     with st.spinner("Generating response..."):
         try:
             completion = client.chat.completions.create(
-                model="llama3-8b-8192",
+                model="llama-3.1-8b-instant",   # ✅ FIXED MODEL
                 messages=[
                     {"role": "system", "content": "You are a helpful study assistant."},
                     {"role": "user", "content": prompt}

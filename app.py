@@ -3,11 +3,6 @@ from groq import Groq
 import os
 
 # -----------------------------
-# Configure Groq client
-# -----------------------------
-client = Groq(api_key=os.getenv("GROQ_API_KEY"))
-
-# -----------------------------
 # Page config
 # -----------------------------
 st.set_page_config(
@@ -32,6 +27,17 @@ body {
 }
 </style>
 """, unsafe_allow_html=True)
+
+# -----------------------------
+# Load API key
+# -----------------------------
+api_key = os.getenv("GROQ_API_KEY")
+
+if not api_key:
+    st.error("GROQ_API_KEY not found in Streamlit Secrets.")
+    st.stop()
+
+client = Groq(api_key=api_key)
 
 # -----------------------------
 # UI
@@ -87,4 +93,5 @@ if st.button("Generate"):
             st.write(output)
 
         except Exception as e:
-            st.error("AI service error. Please try again later.")
+            st.error("Groq API Error:")
+            st.code(str(e))

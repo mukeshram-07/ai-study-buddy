@@ -11,37 +11,65 @@ st.set_page_config(
 )
 
 # -------------------------------------------------
+# Session state for navigation
+# -------------------------------------------------
+if "page" not in st.session_state:
+    st.session_state.page = "Dashboard"
+
+def go(page_name):
+    st.session_state.page = page_name
+
+# -------------------------------------------------
 # GLOBAL THEME (DARK NAVY + GREEN)
 # -------------------------------------------------
 st.markdown("""
 <style>
 
-/* Root background */
+/* Root */
 .stApp {
     background-color: #0F172A;
 }
 
-/* Top menu bar */
-.top-nav {
+/* Top menubar */
+.topbar {
     display: flex;
-    gap: 2rem;
-    padding: 1rem 2rem;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.8rem 2rem;
     background-color: #020617;
     border-bottom: 1px solid #1F2937;
 }
 
-.top-nav a {
-    color: #9CA3AF;
-    font-weight: 600;
-    text-decoration: none;
-    font-size: 15px;
+/* Logo */
+.logo {
+    font-size: 18px;
+    font-weight: 700;
+    color: #E5E7EB;
 }
 
-.top-nav a:hover {
+/* Nav center */
+.nav-center {
+    display: flex;
+    gap: 1.8rem;
+}
+
+.nav-item {
+    color: #9CA3AF;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.nav-item:hover {
     color: #22C55E;
 }
 
-/* Main content card */
+/* Right actions */
+.nav-right {
+    color: #9CA3AF;
+    font-weight: 500;
+}
+
+/* Main container */
 .block-container {
     background-color: #111827;
     border-radius: 20px;
@@ -68,12 +96,12 @@ textarea, select {
     border: 1px solid #1F2937 !important;
 }
 
-/* Primary button */
+/* Primary buttons */
 .stButton > button {
     background-color: #22C55E;
-    color: #FFFFFF;
+    color: #FFFFFF; /* FIXED: visible white text */
     border-radius: 28px;
-    padding: 0.6rem 2.2rem;
+    padding: 0.6rem 2.4rem;
     font-weight: 600;
     border: none;
     transition: all 0.3s ease;
@@ -96,106 +124,95 @@ textarea, select {
 """, unsafe_allow_html=True)
 
 # -------------------------------------------------
-# Load Groq API key
+# Load API key
 # -------------------------------------------------
 api_key = os.getenv("GROQ_API_KEY")
 if not api_key:
-    st.error("GROQ_API_KEY not found in Streamlit Secrets.")
+    st.error("API key not found.")
     st.stop()
 
 client = Groq(api_key=api_key)
 
 # -------------------------------------------------
-# TOP NAVIGATION (CHATGPT STYLE)
+# TOP SAAS MENUBAR
 # -------------------------------------------------
-menu = st.selectbox(
-    "",
-    ["Home", "Explain Topic", "Summarize Notes", "Generate Quiz", "About"],
-    index=0
+st.markdown(
+    """
+    <div class="topbar">
+        <div class="logo">Study Buddy</div>
+        <div class="nav-center">
+            <div class="nav-item" onclick="window.location.hash='#Dashboard'">Dashboard</div>
+            <div class="nav-item" onclick="window.location.hash='#Features'">Features</div>
+            <div class="nav-item" onclick="window.location.hash='#Workspace'">Workspace</div>
+            <div class="nav-item" onclick="window.location.hash='#History'">History</div>
+            <div class="nav-item" onclick="window.location.hash='#Resources'">Resources</div>
+            <div class="nav-item" onclick="window.location.hash='#Help'">Help</div>
+        </div>
+        <div class="nav-right">Profile</div>
+    </div>
+    """,
+    unsafe_allow_html=True
 )
 
 # -------------------------------------------------
-# PAGE CONTENT
+# DASHBOARD
 # -------------------------------------------------
-if menu == "Home":
-    st.markdown("## Study Buddy")
-    st.write(
-        "Study Buddy is an AI-powered academic assistant that helps students "
-        "understand concepts, summarize study material, and generate quizzes efficiently."
-    )
+st.markdown("## Dashboard")
+st.write(
+    "Study Buddy is a modern learning assistant designed to support students "
+    "with concept understanding, revision, and self-assessment in a structured way."
+)
 
-elif menu == "Explain Topic":
-    st.markdown("## Explain Topic")
-    text = st.text_area("Enter a topic or question")
+# -------------------------------------------------
+# WORKSPACE (MAIN AI AREA)
+# -------------------------------------------------
+st.markdown("## Workspace")
 
-    if st.button("Generate Explanation"):
-        if not text.strip():
-            st.warning("Please enter a topic.")
-            st.stop()
+feature = st.selectbox(
+    "Choose a feature",
+    ["Explain Topic", "Summarize Notes", "Generate Quiz"]
+)
 
+text = st.text_area(
+    "Enter your content",
+    height=180,
+    placeholder="Example: Define Artificial Intelligence"
+)
+
+if st.button("Generate"):
+    if not text.strip():
+        st.warning("Please enter some text.")
+        st.stop()
+
+    if feature == "Explain Topic":
         prompt = f"Explain this topic in simple student-friendly language:\n{text}"
-
-        with st.spinner("Processing..."):
-            completion = client.chat.completions.create(
-                model="llama-3.1-8b-instant",
-                messages=[{"role": "user", "content": prompt}],
-                max_tokens=300
-            )
-
-            st.success("Explanation")
-            st.write(completion.choices[0].message.content)
-
-elif menu == "Summarize Notes":
-    st.markdown("## Summarize Notes")
-    text = st.text_area("Paste your notes here")
-
-    if st.button("Generate Summary"):
-        if not text.strip():
-            st.warning("Please enter notes.")
-            st.stop()
-
+    elif feature == "Summarize Notes":
         prompt = f"Summarize the following notes clearly:\n{text}"
+    else:
+        prompt = f"Create 5 quiz questions with answers from the following topic:\n{text}"
 
-        with st.spinner("Processing..."):
-            completion = client.chat.completions.create(
-                model="llama-3.1-8b-instant",
-                messages=[{"role": "user", "content": prompt}],
-                max_tokens=300
-            )
+    with st.spinner("Processing..."):
+        completion = client.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=350
+        )
 
-            st.success("Summary")
-            st.write(completion.choices[0].message.content)
+        st.success("Result")
+        st.write(completion.choices[0].message.content)
 
-elif menu == "Generate Quiz":
-    st.markdown("## Generate Quiz")
-    text = st.text_area("Enter a topic")
+# -------------------------------------------------
+# ABOUT
+# -------------------------------------------------
+st.markdown("## About Study Buddy")
+st.write(
+    """
+    Study Buddy is a web-based academic support platform created to help students
+    learn more effectively. The system assists users by explaining complex topics
+    in simple language, summarizing study material, and generating practice quizzes.
 
-    if st.button("Generate Quiz"):
-        if not text.strip():
-            st.warning("Please enter a topic.")
-            st.stop()
-
-        prompt = f"Create 5 quiz questions with answers from this topic:\n{text}"
-
-        with st.spinner("Processing..."):
-            completion = client.chat.completions.create(
-                model="llama-3.1-8b-instant",
-                messages=[{"role": "user", "content": prompt}],
-                max_tokens=400
-            )
-
-            st.success("Quiz")
-            st.write(completion.choices[0].message.content)
-
-elif menu == "About":
-    st.markdown("## About Study Buddy")
-    st.write(
-        """
-        Study Buddy is a web-based AI learning assistant built using:
-
-        - Streamlit for the user interface  
-        - Groq (LLaMA 3.1) for AI processing  
-
-        The platform follows a clean, professional design inspired by modern AI tools.
-        """
-    )
+    The application follows a clean, professional SaaS-style interface inspired by
+    modern productivity and AI tools, ensuring ease of use, clarity, and scalability
+    for future enhancements.
+    """
+)

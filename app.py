@@ -7,7 +7,7 @@ st.set_page_config(page_title="AI Study Buddy", layout="wide")
 def load_model():
     return pipeline(
         "text2text-generation",
-        model="google/flan-t5-large"
+        model="study_buddy_model"
     )
 
 model = load_model()
@@ -29,19 +29,19 @@ if st.button("Generate"):
             prompt = f"Explain the following topic in simple terms for a student:\n{text}"
 
         elif option == "Summarize Notes":
-            prompt = f"Summarize the following content clearly in 5 bullet points:\n{text}"
+            prompt = f"Summarize the following content in clear, simple sentences:\n{text}"
 
         else:
             prompt = f"Create 5 quiz questions with answers from the following content:\n{text}"
 
         output = model(
             prompt,
-            max_length=256,
-            do_sample=False,
-            repetition_penalty=2.5
+            max_length=200,
+            min_length=30,
+            num_beams=4,
+            repetition_penalty=2.0,
+            early_stopping=True
         )
 
         st.success("Done!")
         st.write(output[0]["generated_text"])
-
-

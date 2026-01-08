@@ -1,11 +1,19 @@
 import streamlit as st
-from openai import OpenAI
+from transformers import pipeline
 
-client = OpenAI()
+st.set_page_config(page_title="AI Study Buddy", layout="wide")
 
-st.set_page_config(page_title="AI Study Buddy", layout="centered")
+# Load model once
+@st.cache_resource
+def load_model():
+    return pipeline(
+        "text2text-generation",
+        model="google/flan-t5-base"
+    )
+
+model = load_model()
+
 st.title("📘 AI-Powered Study Buddy")
-
 st.write("Explain topics, summarize notes, and generate quizzes.")
 
 text = st.text_area("Enter your topic or notes")
@@ -18,17 +26,13 @@ option = st.selectbox(
 if st.button("Generate"):
     with st.spinner("AI is working..."):
         if option == "Explain Simply":
-            prompt = f"Explain the following topic in simple student-friendly language:\n{text}"
+            prompt = f"Explain in simple terms: {text}"
         elif option == "Summarize Notes":
-            prompt = f"Summarize the following notes in bullet points:\n{text}"
+            prompt = f"Summarize: {text}"
         else:
-            prompt = f"Create 5 MCQs with answers from the following content:\n{text}"
+            prompt = f"Create 5 quiz questions with answers: {text}"
 
-        response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-
-            messages=[{"role": "user", "content": prompt}]
-        )
-
+        output = model(prompt, max_length=256)
         st.success("Done!")
-        st.write(response.choices[0].message.content)
+        st.write(output[0]["generated_text"])
+

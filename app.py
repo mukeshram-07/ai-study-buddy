@@ -4,24 +4,72 @@ import os
 import PyPDF2
 
 # ---------------------------------
-# Page setup
+# Page configuration
 # ---------------------------------
-st.set_page_config(page_title="Study Buddy – Document AI", layout="centered")
+st.set_page_config(
+    page_title="Study Buddy",
+    layout="centered"
+)
+
+# ---------------------------------
+# Minimal ChatGPT-style theme
+# ---------------------------------
+st.markdown("""
+<style>
+.stApp {
+    background-color: #0B1220;
+}
+.block-container {
+    max-width: 720px;
+    padding-top: 2rem;
+}
+h1 {
+    text-align: center;
+    color: #E5E7EB;
+}
+p, label, div {
+    color: #9CA3AF;
+}
+textarea {
+    background-color: #111827 !important;
+    color: #E5E7EB !important;
+    border-radius: 12px !important;
+}
+.stButton > button {
+    background-color: #10B981;
+    color: white;
+    border-radius: 22px;
+    padding: 0.5rem 1.8rem;
+    font-weight: 600;
+}
+.stButton > button:hover {
+    background-color: #059669;
+}
+.chat-box {
+    background-color: #111827;
+    border-radius: 14px;
+    padding: 1.2rem;
+    margin-top: 1.5rem;
+}
+</style>
+""", unsafe_allow_html=True)
 
 # ---------------------------------
 # Load API key
 # ---------------------------------
 api_key = os.getenv("GROQ_API_KEY")
 if not api_key:
-    st.error("API key not found")
+    st.error("API key not found.")
     st.stop()
 
 client = Groq(api_key=api_key)
 
 # ---------------------------------
-# Helper: Extract text from file
+# Helper: Extract text from PDF
 # ---------------------------------
 def extract_text(file):
+    if file is None:
+        return ""
     if file.type == "application/pdf":
         reader = PyPDF2.PdfReader(file)
         text = ""
@@ -29,67 +77,85 @@ def extract_text(file):
             if page.extract_text():
                 text += page.extract_text() + "\n"
         return text
-
-    elif file.type == "text/plain":
-        return file.read().decode("utf-8")
-
     return ""
 
 # ---------------------------------
 # UI
 # ---------------------------------
-st.title("Study Buddy – Document Assistant")
-st.write("Upload a document and choose what you want to do.")
+st.markdown("<h1>Study Buddy</h1>", unsafe_allow_html=True)
+st.write("Ask questions, upload documents, or generate quizzes — just like ChatGPT.")
 
 uploaded_file = st.file_uploader(
-    "Upload PDF or TXT file",
+    "Attach document (optional)",
     type=["pdf", "txt"]
 )
 
-task = st.selectbox(
-    "Choose an action",
-    ["Explain Content", "Summarize Document", "Generate 3 Quiz Questions"]
+user_input = st.text_area(
+    "Message",
+    height=120,
+    placeholder="Ask a question or paste content here..."
+)
+
+action = st.selectbox(
+    "Action",
+    ["Explain", "Summarize", "Generate 3 Quiz Questions"]
 )
 
 # ---------------------------------
-# Main logic
+# Chat action
 # ---------------------------------
-if uploaded_file:
-    with st.spinner("Reading document..."):
-        document_text = extract_text(uploaded_file)
-
-    if not document_text.strip():
-        st.error("Unable to extract text from the document.")
+if st.button("Send"):
+    if not user_input.strip() and not uploaded_file:
+        st.warning("Please enter text or upload a document.")
         st.stop()
 
-    if st.button("Process Document"):
-        if task == "Explain Content":
-            prompt = f"""
-Explain the following content in simple student-friendly language:
+    document_text = extract_text(uploaded_file)
 
+    # Build prompt (ChatGPT-style)
+    if action == "Explain":
+        prompt = f"""
+Explain the following content in simple, student-friendly language.
+
+User input:
+{user_input}
+
+Document content (if any):
 {document_text}
 """
 
-        elif task == "Summarize Document":
-            prompt = f"""
-Summarize the following document clearly and concisely:
+    elif action == "Summarize":
+        prompt = f"""
+Summarize the following content clearly and concisely.
 
+User input:
+{user_input}
+
+Document content (if any):
 {document_text}
 """
 
-        else:  # Generate 3 Quiz Questions
-            prompt = f"""
-Create exactly 3 quiz questions with answers from the following document:
+    else:  # 3 quiz questions mandatory
+        prompt = f"""
+Generate exactly 3 quiz questions with answers from the following content.
 
+User input:
+{user_input}
+
+Document content (if any):
 {document_text}
 """
 
-        with st.spinner("Generating response..."):
-            completion = client.chat.completions.create(
-                model="llama-3.1-8b-instant",
-                messages=[{"role": "user", "content": prompt}],
-                max_tokens=400
-            )
+    with st.spinner("Thinking..."):
+        completion = client.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=400
+        )
 
-        st.success("Result")
-        st.write(completion.choices[0].message.content)
+    response = completion.choices[0].message.content
+
+    # Chat-style output
+    st.markdown("<div class='chat-box'>", unsafe_allow_html=True)
+    st.markdown("**Assistant:**")
+    st.write(response)
+    st.markdown("</div>", unsafe_allow_html=True)

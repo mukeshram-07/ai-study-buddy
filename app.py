@@ -2,86 +2,97 @@ import streamlit as st
 from groq import Groq
 import os
 
-# --------------------------------
+# -------------------------------------------------
 # Page configuration
-# --------------------------------
+# -------------------------------------------------
 st.set_page_config(
     page_title="AI-Powered Study Buddy",
     layout="centered"
 )
 
-# --------------------------------
-# GLOBAL CSS (IMPORTANT)
-# --------------------------------
+# -------------------------------------------------
+# GLOBAL THEME (AI / TECH MODERN)
+# -------------------------------------------------
 st.markdown("""
 <style>
 
-/* ROOT BACKGROUND (THIS FIXES WHITE BG) */
+/* ===== ROOT BACKGROUND ===== */
 .stApp {
-    background: linear-gradient(-45deg, #0f2027, #203a43, #2c5364, #1f4037);
-    background-size: 400% 400%;
-    animation: gradientBG 15s ease infinite;
+    background-color: #0F172A; /* Dark Navy */
 }
 
-/* Gradient animation */
-@keyframes gradientBG {
-    0% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
-}
-
-/* Main content glass card */
+/* ===== MAIN CONTENT CARD ===== */
 .block-container {
-    background: rgba(255, 255, 255, 0.12);
-    backdrop-filter: blur(14px);
-    border-radius: 18px;
+    background-color: #111827; /* Dark card */
+    border-radius: 20px;
     padding: 2.5rem;
-    box-shadow: 0px 10px 30px rgba(0,0,0,0.3);
+    margin-top: 1rem;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.45);
 }
 
-/* Headings */
+/* ===== HEADINGS ===== */
 h1, h2, h3 {
-    color: white;
+    color: #E5E7EB; /* Primary text */
     text-align: center;
 }
 
-/* Paragraph text */
-p, label, span {
-    color: #eaeaea !important;
+/* ===== NORMAL TEXT ===== */
+p, label, span, div {
+    color: #9CA3AF; /* Secondary text */
 }
 
-/* Text area & select box */
+/* ===== SELECT BOX & TEXT AREA ===== */
 textarea, select {
+    background-color: #0F172A !important;
+    color: #E5E7EB !important;
     border-radius: 14px !important;
+    border: 1px solid #1F2937 !important;
 }
 
-/* Button styling */
+/* ===== BUTTON (PRIMARY) ===== */
 .stButton > button {
-    background: linear-gradient(135deg, #00c6ff, #0072ff);
-    color: white;
-    border-radius: 30px;
-    padding: 0.6rem 2rem;
-    font-weight: bold;
+    background: linear-gradient(135deg, #38BDF8, #0EA5E9); /* Sky Blue */
+    color: #0F172A;
+    border-radius: 32px;
+    padding: 0.6rem 2.2rem;
+    font-weight: 700;
     border: none;
     transition: all 0.3s ease;
 }
 
 .stButton > button:hover {
-    transform: scale(1.08);
-    box-shadow: 0px 10px 25px rgba(0,0,0,0.4);
+    transform: translateY(-2px) scale(1.05);
+    box-shadow: 0 12px 28px rgba(56,189,248,0.45);
 }
 
-/* Result box */
-.stAlert {
+/* ===== SUCCESS / RESULT BOX ===== */
+.stAlert[data-baseweb="notification"] {
+    background-color: #022C22 !important;
+    color: #D1FAE5 !important;
     border-radius: 14px;
+    border-left: 6px solid #22C55E; /* Green */
+}
+
+/* ===== WARNING BOX ===== */
+.stAlert[data-baseweb="notification"][role="alert"] {
+    border-radius: 14px;
+}
+
+/* ===== SCROLLBAR (OPTIONAL POLISH) ===== */
+::-webkit-scrollbar {
+    width: 8px;
+}
+::-webkit-scrollbar-thumb {
+    background: #1F2937;
+    border-radius: 10px;
 }
 
 </style>
 """, unsafe_allow_html=True)
 
-# --------------------------------
-# Load Groq API Key
-# --------------------------------
+# -------------------------------------------------
+# Load Groq API key
+# -------------------------------------------------
 api_key = os.getenv("GROQ_API_KEY")
 if not api_key:
     st.error("❌ GROQ_API_KEY not found in Streamlit Secrets.")
@@ -89,18 +100,18 @@ if not api_key:
 
 client = Groq(api_key=api_key)
 
-# --------------------------------
-# UI HEADER
-# --------------------------------
+# -------------------------------------------------
+# HEADER
+# -------------------------------------------------
 st.markdown("<h1>🤖 AI-Powered Study Buddy</h1>", unsafe_allow_html=True)
 st.markdown(
     "<p style='text-align:center; font-size:18px;'>Explain topics • Summarize notes • Generate quizzes</p>",
     unsafe_allow_html=True
 )
 
-# --------------------------------
-# Controls
-# --------------------------------
+# -------------------------------------------------
+# USER INPUT CONTROLS
+# -------------------------------------------------
 option = st.selectbox(
     "Choose a feature",
     ["Explain Topic", "Summarize Notes", "Generate Quiz"]
@@ -112,10 +123,10 @@ text = st.text_area(
     placeholder="Example: Define Artificial Intelligence"
 )
 
-# --------------------------------
-# Button Action
-# --------------------------------
-if st.button("✨ Generate"):
+# -------------------------------------------------
+# BUTTON ACTION
+# -------------------------------------------------
+if st.button("🚀 Generate"):
     if not text.strip():
         st.warning("Please enter some text.")
         st.stop()
@@ -131,7 +142,7 @@ if st.button("✨ Generate"):
     else:
         prompt = f"Create 5 quiz questions with answers from the following topic:\n{text}"
 
-    with st.spinner("🚀 AI is thinking..."):
+    with st.spinner("AI is processing..."):
         try:
             completion = client.chat.completions.create(
                 model="llama-3.1-8b-instant",

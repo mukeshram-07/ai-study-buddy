@@ -3,12 +3,11 @@ from transformers import pipeline
 
 st.set_page_config(page_title="AI Study Buddy", layout="wide")
 
-# Load model once
 @st.cache_resource
 def load_model():
     return pipeline(
         "text2text-generation",
-        model="google/flan-t5-base"
+        model="google/flan-t5-large"
     )
 
 model = load_model()
@@ -25,14 +24,24 @@ option = st.selectbox(
 
 if st.button("Generate"):
     with st.spinner("AI is working..."):
-        if option == "Explain Simply":
-            prompt = f"Explain in simple terms: {text}"
-        elif option == "Summarize Notes":
-            prompt = f"Summarize: {text}"
-        else:
-            prompt = f"Create 5 quiz questions with answers: {text}"
 
-        output = model(prompt, max_length=256)
+        if option == "Explain Simply":
+            prompt = f"Explain the following topic in simple terms for a student:\n{text}"
+
+        elif option == "Summarize Notes":
+            prompt = f"Summarize the following content clearly in 5 bullet points:\n{text}"
+
+        else:
+            prompt = f"Create 5 quiz questions with answers from the following content:\n{text}"
+
+        output = model(
+            prompt,
+            max_length=256,
+            do_sample=False,
+            repetition_penalty=2.5
+        )
+
         st.success("Done!")
         st.write(output[0]["generated_text"])
+
 

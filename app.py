@@ -1,14 +1,17 @@
 import streamlit as st
-import google.generativeai as genai
+import requests
 import os
 
 # ---------------------------------
-# Configure Gemini API
+# Hugging Face API details
 # ---------------------------------
-genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+API_URL = "https://api-inference.huggingface.co/models/google/flan-t5-large"
+HEADERS = {
+    "Authorization": f"Bearer {os.getenv('HF_API_KEY')}"
+}
 
 # ---------------------------------
-# Page config
+# Page configuration
 # ---------------------------------
 st.set_page_config(
     page_title="AI-Powered Study Buddy",
@@ -21,14 +24,14 @@ st.set_page_config(
 st.markdown("""
 <style>
 body {
-    background: linear-gradient(-45deg, #0f2027, #203a43, #2c5364);
+    background: linear-gradient(-45deg, #141e30, #243b55);
     background-size: 400% 400%;
     animation: gradientBG 10s ease infinite;
 }
 @keyframes gradientBG {
-    0% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
+    0% {background-position:0% 50%;}
+    50% {background-position:100% 50%;}
+    100% {background-position:0% 50%;}
 }
 </style>
 """, unsafe_allow_html=True)
@@ -36,7 +39,7 @@ body {
 # ---------------------------------
 # UI
 # ---------------------------------
-st.title("🤖 AI-Powered Study Buddy (Gemini)")
+st.title("🤖 AI-Powered Study Buddy")
 st.write("Explain topics • Summarize notes • Generate quizzes")
 
 option = st.selectbox(
@@ -58,40 +61,38 @@ if st.button("Generate"):
         st.warning("Please enter some text.")
         st.stop()
 
-    if len(text) > 1200:
-        st.warning("Input too long. Please limit to 1200 characters.")
+    if len(text) > 1000:
+        st.warning("Please limit input to 1000 characters.")
         st.stop()
 
-    # Prompt creation
+    # Prompt preparation
     if option == "Explain Topic":
-        prompt = f"Explain the following topic in simple student-friendly language:\n{text}"
+        prompt = f"Explain in simple words: {text}"
     elif option == "Summarize Notes":
-        prompt = f"Summarize the following notes clearly:\n{text}"
+        prompt = f"Summarize clearly: {text}"
     else:
-        prompt = f"Create 5 quiz questions with answers from the following topic:\n{text}"
+        prompt = f"Create 5 quiz questions with answers: {text}"
 
-    # ---------------------------------
-    # Gemini model (FAST & STABLE)
-    # ---------------------------------
-    model = genai.GenerativeModel("gemini-1.5-flash")
+    payload = {
+        "inputs": prompt,
+        "parameters": {
+            "max_new_tokens": 250,
+            "temperature": 0.5
+        }
+    }
 
     with st.spinner("Generating response..."):
         try:
-            response = model.generate_content(
-                prompt,
-                generation_config={
-                    "max_output_tokens": 300,
-                    "temperature": 0.4
-                }
-            )
+            response = requests.post(API_URL, headers=HEADERS, json=payload, timeout=30)
+            result = response.json()
 
-            output = getattr(response, "text", "").strip()
-
-            if output:
+            if isinstance(result, list) and "generated_text" in result[0]:
                 st.success("Result")
-                st.write(output)
+                st.write(result[0]["generated_text"])
+            elif isinstance(result, dict) and "error" in result:
+                st.error("Model is loading. Please try again in 10 seconds.")
             else:
-                st.warning("AI responded but returned no text. Please try again.")
+                st.error("Unexpected response from AI.")
 
         except Exception as e:
-            st.error("AI service is temporarily busy. Please try again later.")
+            st.error("AI service unavailable.")

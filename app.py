@@ -1,11 +1,12 @@
 import streamlit as st
 import requests
 import os
+import time
 
 # ---------------------------------
 # Hugging Face API details
 # ---------------------------------
-API_URL = "https://api-inference.huggingface.co/models/google/flan-t5-large"
+API_URL = "https://api-inference.huggingface.co/models/google/flan-t5-base"
 HEADERS = {
     "Authorization": f"Bearer {os.getenv('HF_API_KEY')}"
 }
@@ -61,8 +62,8 @@ if st.button("Generate"):
         st.warning("Please enter some text.")
         st.stop()
 
-    if len(text) > 1000:
-        st.warning("Please limit input to 1000 characters.")
+    if len(text) > 800:
+        st.warning("Please limit input to 800 characters.")
         st.stop()
 
     # Prompt preparation
@@ -76,23 +77,34 @@ if st.button("Generate"):
     payload = {
         "inputs": prompt,
         "parameters": {
-            "max_new_tokens": 250,
+            "max_new_tokens": 200,
             "temperature": 0.5
         }
     }
 
     with st.spinner("Generating response..."):
-        try:
-            response = requests.post(API_URL, headers=HEADERS, json=payload, timeout=30)
+        for attempt in range(3):  # retry logic
+            response = requests.post(
+                API_URL,
+                headers=HEADERS,
+                json=payload,
+                timeout=30
+            )
+
             result = response.json()
 
+            # SUCCESS CASE
             if isinstance(result, list) and "generated_text" in result[0]:
                 st.success("Result")
                 st.write(result[0]["generated_text"])
-            elif isinstance(result, dict) and "error" in result:
-                st.error("Model is loading. Please try again in 10 seconds.")
-            else:
-                st.error("Unexpected response from AI.")
+                break
 
-        except Exception as e:
-            st.error("AI service unavailable.")
+            # MODEL LOADING CASE
+            elif isinstance(result, dict) and "error" in result:
+                if "loading" in result["error"].lower():
+                    time.sleep(5)  # wait and retry
+                else:
+                    st.error("AI error: " + result["error"])
+                    break
+        else:
+            st.error("AI is still warming up. Please try again once more.")

@@ -12,7 +12,7 @@ st.set_page_config(
 )
 
 # -------------------------------------------------
-# Session State Initialization
+# Session State
 # -------------------------------------------------
 if "history" not in st.session_state:
     st.session_state.history = []
@@ -34,20 +34,12 @@ st.markdown("""
     color: var(--text-color);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
-
 .flashcard-title {
     font-weight: 600;
     margin-bottom: 10px;
 }
-
-.flashcard-content {
-    line-height: 1.6;
-}
-
-/* Mermaid container */
 .mermaid {
     background-color: var(--background-color);
-    color: var(--text-color);
     border-radius: 8px;
     padding: 16px;
 }
@@ -55,36 +47,33 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # -------------------------------------------------
-# Sidebar (Menu Bar)
+# Sidebar
 # -------------------------------------------------
 st.sidebar.title("Application Menu")
 
-st.sidebar.markdown("### Study Mode")
 mode = st.sidebar.selectbox(
-    "Mode",
+    "Study Mode",
     [
         "Explain Topic",
         "Summarize Notes",
         "Generate Quiz",
         "Generate Flashcards",
         "Generate Flowchart"
-    ],
-    label_visibility="collapsed"
+    ]
 )
 
 st.sidebar.markdown("---")
-st.sidebar.markdown("### History")
+st.sidebar.markdown("History")
 
 if not st.session_state.history:
     st.sidebar.caption("No history available")
 else:
     for i, item in enumerate(st.session_state.history):
         with st.sidebar.expander(f"{i + 1}. {item['mode']}"):
-            st.caption(item["input"][:120] + ("..." if len(item["input"]) > 120 else ""))
-            if st.button("Open", key=f"open_{i}"):
+            st.caption(item["input"][:120])
+            if st.button("Open", key=f"hist_{i}"):
                 st.session_state.selected_history = i
 
-st.sidebar.markdown("---")
 if st.sidebar.button("Clear History"):
     st.session_state.history.clear()
     st.session_state.selected_history = None
@@ -93,7 +82,6 @@ if st.sidebar.button("Clear History"):
 # Load API Key
 # -------------------------------------------------
 api_key = os.getenv("GROQ_API_KEY")
-
 if not api_key:
     st.error("GROQ_API_KEY not configured.")
     st.stop()
@@ -101,7 +89,7 @@ if not api_key:
 client = Groq(api_key=api_key)
 
 # -------------------------------------------------
-# Main Content
+# Main Area
 # -------------------------------------------------
 st.title("AI-Powered Study Buddy")
 st.caption(
@@ -109,7 +97,7 @@ st.caption(
 )
 
 # -------------------------------------------------
-# Display History Record
+# Show History Item
 # -------------------------------------------------
 if st.session_state.selected_history is not None:
     record = st.session_state.history[st.session_state.selected_history]
@@ -120,12 +108,12 @@ if st.session_state.selected_history is not None:
     st.divider()
 
     if record["mode"] == "Generate Flashcards":
-        for idx, (q, a) in enumerate(record["output"], 1):
+        for i, (q, a) in enumerate(record["output"], 1):
             st.markdown(f"""
             <div class="flashcard">
-                <div class="flashcard-title">Flashcard {idx}</div>
-                <div class="flashcard-content"><strong>Question:</strong> {q}</div>
-                <div class="flashcard-content"><strong>Answer:</strong> {a}</div>
+                <div class="flashcard-title">Flashcard {i}</div>
+                <div><strong>Question:</strong> {q}</div>
+                <div><strong>Answer:</strong> {a}</div>
             </div>
             """, unsafe_allow_html=True)
 
@@ -138,14 +126,14 @@ if st.session_state.selected_history is not None:
     st.stop()
 
 # -------------------------------------------------
-# New Request Section
+# New Request
 # -------------------------------------------------
 st.subheader("New Request")
 
 user_input = st.text_area(
     "Enter study content",
     height=180,
-    placeholder="Example: Explain the software development life cycle"
+    placeholder="Example: Explain the OSI model"
 )
 
 # -------------------------------------------------
@@ -156,26 +144,30 @@ if st.button("Generate Output"):
         st.warning("Input cannot be empty.")
         st.stop()
 
-    # ---------------- Prompt Selection ----------------
-    if mode == "Generate Flashcards":
+    # -------- PROMPTS --------
+    if mode == "Generate Flowchart":
+        prompt = f"""
+        Convert the following topic into a clean flowchart.
+
+        Rules:
+        - Use Mermaid flowchart syntax only
+        - Start with: graph TD
+        - Do NOT use markdown code blocks
+        - Use unique node IDs
+        - No explanations, only the diagram
+
+        Topic:
+        {user_input}
+        """
+
+    elif mode == "Generate Flashcards":
         prompt = f"""
         Create exactly 5 study flashcards.
-        Format strictly as:
+        Format:
         Q: Question
         A: Answer
 
         Content:
-        {user_input}
-        """
-
-    elif mode == "Generate Flowchart":
-        prompt = f"""
-        Convert the following topic into a clear flowchart.
-        Use Mermaid flowchart syntax only.
-        Start with 'graph TD'.
-        Do not include explanations or markdown.
-
-        Topic:
         {user_input}
         """
 
@@ -188,65 +180,57 @@ if st.button("Generate Output"):
     else:
         prompt = f"Create 5 quiz questions with answers:\n{user_input}"
 
-    # ---------------- Model Call ----------------
     with st.spinner("Generating response"):
-        try:
-            response = client.chat.completions.create(
-                model="llama-3.1-8b-instant",
-                messages=[
-                    {"role": "system", "content": "You are a professional academic assistant."},
-                    {"role": "user", "content": prompt}
-                ],
-                temperature=0.4,
-                max_tokens=500
-            )
+        response = client.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            messages=[
+                {"role": "system", "content": "You are a professional academic assistant."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.4,
+            max_tokens=500
+        )
 
-            result = response.choices[0].message.content
+        raw_output = response.choices[0].message.content.strip()
 
-            # ---------------- Rendering ----------------
-            if mode == "Generate Flashcards":
-                cards = re.findall(
-                    r"Q:\s*(.*?)\nA:\s*(.*?)(?:\n|$)",
-                    result,
-                    re.S
-                )
+        # -------- CLEAN MERMAID OUTPUT --------
+        if mode == "Generate Flowchart":
+            cleaned = re.sub(r"```mermaid|```", "", raw_output).strip()
 
-                st.subheader("Generated Flashcards")
-                for idx, (q, a) in enumerate(cards, 1):
-                    st.markdown(f"""
-                    <div class="flashcard">
-                        <div class="flashcard-title">Flashcard {idx}</div>
-                        <div class="flashcard-content"><strong>Question:</strong> {q.strip()}</div>
-                        <div class="flashcard-content"><strong>Answer:</strong> {a.strip()}</div>
-                    </div>
-                    """, unsafe_allow_html=True)
+            st.subheader("Generated Flowchart")
+            st.markdown(f"<div class='mermaid'>{cleaned}</div>", unsafe_allow_html=True)
 
-                st.session_state.history.append({
-                    "mode": mode,
-                    "input": user_input,
-                    "output": [(q.strip(), a.strip()) for q, a in cards]
-                })
+            st.session_state.history.append({
+                "mode": mode,
+                "input": user_input,
+                "output": f"<div class='mermaid'>{cleaned}</div>"
+            })
 
-            elif mode == "Generate Flowchart":
-                st.subheader("Generated Flowchart")
-                st.markdown(f"<div class='mermaid'>{result}</div>", unsafe_allow_html=True)
+        elif mode == "Generate Flashcards":
+            cards = re.findall(r"Q:\s*(.*?)\nA:\s*(.*?)(?:\n|$)", raw_output, re.S)
 
-                st.session_state.history.append({
-                    "mode": mode,
-                    "input": user_input,
-                    "output": f"<div class='mermaid'>{result}</div>"
-                })
+            st.subheader("Generated Flashcards")
+            for i, (q, a) in enumerate(cards, 1):
+                st.markdown(f"""
+                <div class="flashcard">
+                    <div class="flashcard-title">Flashcard {i}</div>
+                    <div><strong>Question:</strong> {q.strip()}</div>
+                    <div><strong>Answer:</strong> {a.strip()}</div>
+                </div>
+                """, unsafe_allow_html=True)
 
-            else:
-                st.subheader("Result")
-                st.write(result)
+            st.session_state.history.append({
+                "mode": mode,
+                "input": user_input,
+                "output": [(q.strip(), a.strip()) for q, a in cards]
+            })
 
-                st.session_state.history.append({
-                    "mode": mode,
-                    "input": user_input,
-                    "output": result
-                })
+        else:
+            st.subheader("Result")
+            st.write(raw_output)
 
-        except Exception as e:
-            st.error("Request failed.")
-            st.code(str(e))
+            st.session_state.history.append({
+                "mode": mode,
+                "input": user_input,
+                "output": raw_output
+            })

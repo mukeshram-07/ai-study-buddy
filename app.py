@@ -28,7 +28,7 @@ if not api_key:
 client = Groq(api_key=api_key)
 
 # -------------------------------------------------
-# Styling
+# Styling (Theme Aware Cards)
 # -------------------------------------------------
 st.markdown("""
 <style>
@@ -39,78 +39,47 @@ st.markdown("""
     margin-bottom: 14px;
     background-color: var(--background-color);
 }
-.flashcard-title {
+.flashcard-q {
     font-weight: 600;
     margin-bottom: 6px;
 }
-.mermaid {
-    background-color: var(--background-color);
-    border: 1px solid rgba(150,150,150,0.25);
-    border-radius: 8px;
-    padding: 16px;
-}
-.timeline {
-    position: relative;
-    margin-left: 20px;
-    padding-left: 20px;
-}
-.timeline::before {
-    content: "";
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 2px;
-    height: 100%;
-    background-color: rgba(150,150,150,0.4);
-}
-.step {
-    position: relative;
-    padding: 10px 12px;
-    margin-bottom: 14px;
-    border-radius: 6px;
-    background-color: var(--background-color);
-    border: 1px solid rgba(150,150,150,0.25);
-}
-.step::before {
-    content: "";
-    position: absolute;
-    left: -26px;
-    top: 16px;
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    background-color: rgba(150,150,150,0.9);
+.flashcard-a {
+    color: var(--text-color);
 }
 </style>
 """, unsafe_allow_html=True)
 
 # -------------------------------------------------
-# Helpers
+# Helper: Robust Flashcard Parser
 # -------------------------------------------------
-def clean_mermaid(raw: str) -> str:
-    raw = re.sub(r"```mermaid|```", "", raw, flags=re.IGNORECASE).strip()
-    raw = raw.replace(" --> ", "\n--> ").replace(" -.-> ", "\n-.-> ")
-    lines = ["graph TD"]
+def parse_flashcards(text):
+    # Primary strict Q/A format
+    cards = re.findall(
+        r"Q\s*[:\-]\s*(.*?)\nA\s*[:\-]\s*(.*?)(?=\nQ|\Z)",
+        text,
+        re.S | re.I
+    )
 
-    for line in raw.splitlines():
-        line = line.strip()
-        if line and not line.lower().startswith("graph"):
-            line = re.sub(r"\|\>\s*", "|", line)
-            lines.append(line)
+    if cards:
+        return [(q.strip(), a.strip()) for q, a in cards]
 
-    return "\n".join(lines)
+    # Fallback: numbered questions
+    fallback = re.findall(
+        r"\d+[\).\s]+(.*?)\n.*?Answer\s*[:\-]\s*(.*?)(?=\n\d+|\Z)",
+        text,
+        re.S | re.I
+    )
 
+    if fallback:
+        return [(q.strip(), a.strip()) for q, a in fallback]
 
-def extract_steps(mermaid_code: str):
-    steps, seen = [], set()
-    for line in mermaid_code.splitlines():
-        if "-->" in line and "-.->" not in line:
-            labels = re.findall(r"\[(.*?)\]", line)
-            for lbl in labels:
-                if lbl not in seen:
-                    steps.append(lbl)
-                    seen.add(lbl)
-    return steps
+    # Last resort: split paragraphs
+    paragraphs = [p.strip() for p in text.split("\n") if p.strip()]
+    cards = []
+    for i in range(0, len(paragraphs) - 1, 2):
+        cards.append((paragraphs[i], paragraphs[i + 1]))
+
+    return cards
 
 # -------------------------------------------------
 # Sidebar
@@ -182,20 +151,33 @@ if st.button("Generate Output"):
         max_tokens = 700
 
     elif mode == "Generate Quiz":
-        prompt = f"Create 5 quiz questions with answers based on:\n{user_input}"
-        max_tokens = 700
+        prompt = f"""
+        Create exactly 5 quiz questions WITH answers.
+        The quiz must be STRICTLY based on the topic below.
+
+        Topic: "{user_input}"
+
+        Use simple student-friendly language.
+        """
+        max_tokens = 800
 
     elif mode == "Generate Flashcards":
-        prompt = f"Create 5 flashcards in Q/A format:\n{user_input}"
-        max_tokens = 700
+        prompt = f"""
+        Create exactly 5 flashcards from the topic below.
+
+        STRICT FORMAT (DO NOT DEVIATE):
+        Q: Question text
+        A: Answer text
+
+        Topic: "{user_input}"
+        """
+        max_tokens = 800
 
     else:  # Flowchart
         prompt = f"""
         Convert the topic into a Mermaid flowchart.
-        Rules:
-        - Start with graph TD
-        - Use --> for main flow
-        - Use -.-> for optional steps
+        Use --> for main steps and -.-> for optional steps.
+
         Topic:
         {user_input}
         """
@@ -212,29 +194,23 @@ if st.button("Generate Output"):
     output = response.choices[0].message.content
 
     # ---------- RENDER ----------
-    if mode == "Generate Flowchart":
-        flow = clean_mermaid(output)
-        st.markdown(f"<div class='mermaid'>{flow}</div>", unsafe_allow_html=True)
+    if mode == "Generate Flashcards":
+        cards = parse_flashcards(output)
 
-        steps = extract_steps(flow)
-        timeline = "<div class='timeline'>"
-        for i, s in enumerate(steps, 1):
-            timeline += f"<div class='step'><strong>{i}. {s}</strong></div>"
-        timeline += "</div>"
-        st.markdown(timeline, unsafe_allow_html=True)
+        st.subheader("Flashcards")
+        if not cards:
+            st.warning("Could not parse flashcards, showing raw output.")
+            st.write(output)
+        else:
+            for q, a in cards:
+                st.markdown(f"""
+                <div class="flashcard">
+                    <div class="flashcard-q">Q: {q}</div>
+                    <div class="flashcard-a">A: {a}</div>
+                </div>
+                """, unsafe_allow_html=True)
 
-        final_output = flow + "\n" + " → ".join(steps)
-
-    elif mode == "Generate Flashcards":
-        cards = re.findall(r"Q:\s*(.*?)\nA:\s*(.*?)(?:\n|$)", output, re.S)
-        for q, a in cards:
-            st.markdown(f"""
-            <div class="flashcard">
-                <div class="flashcard-title">{q}</div>
-                <div>{a}</div>
-            </div>
-            """, unsafe_allow_html=True)
-        final_output = output
+        final_output = cards
 
     else:
         st.write(output)

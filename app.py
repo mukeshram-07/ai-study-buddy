@@ -31,7 +31,7 @@ if not api_key:
 client = Groq(api_key=api_key)
 
 # -------------------------------------------------
-# Theme-aware Styling
+# Styling (Theme Aware)
 # -------------------------------------------------
 st.markdown("""
 <style>
@@ -57,7 +57,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # -------------------------------------------------
-# Mermaid Cleaner (VERY IMPORTANT)
+# Mermaid Cleaner & Formatter
 # -------------------------------------------------
 def clean_and_format_mermaid(raw: str) -> str:
     raw = re.sub(r"```mermaid|```", "", raw, flags=re.IGNORECASE).strip()
@@ -69,14 +69,10 @@ def clean_and_format_mermaid(raw: str) -> str:
         if not line:
             continue
 
-        # Fix -->|Data|> mistakes
         line = re.sub(r"\|\>\s*", "|", line)
-
-        # Normalize arrows
         line = re.sub(r"\s*-->\s*", " --> ", line)
         line = re.sub(r"\s*-\.\->\s*", " -.-> ", line)
 
-        # Split long chained lines into readable ones
         if " --> " in line and line.count(" --> ") > 1:
             parts = line.split(" --> ")
             for i in range(len(parts) - 1):
@@ -122,11 +118,11 @@ if st.sidebar.button("Clear History"):
     st.session_state.selected_history = None
 
 # -------------------------------------------------
-# Main Title
+# Main Header
 # -------------------------------------------------
 st.title("AI-Powered Study Buddy")
 st.caption(
-    "Professional academic assistant for explanations, summaries, quizzes, flashcards, and formatted flowcharts"
+    "Explain concepts, summarize notes, generate quizzes, flashcards, and easy-to-understand flowcharts"
 )
 
 # -------------------------------------------------
@@ -152,6 +148,8 @@ if st.session_state.selected_history is not None:
 
     elif record["mode"] == "Generate Flowchart":
         st.markdown(record["output"], unsafe_allow_html=True)
+        st.markdown("### Explanation")
+        st.write(record["explanation"])
 
     else:
         st.write(record["output"])
@@ -166,7 +164,7 @@ st.subheader("New Request")
 user_input = st.text_area(
     "Enter study content",
     height=180,
-    placeholder="Example: Explain the OSI model or software development life cycle"
+    placeholder="Example: Explain the data analysis lifecycle"
 )
 
 # -------------------------------------------------
@@ -200,18 +198,17 @@ if st.button("Generate Output"):
 
     else:  # Flowchart
         prompt = f"""
-        Convert the following content into a clean, formatted flowchart.
+        Convert the following content into a clean flowchart.
 
         Rules:
         - Use Mermaid flowchart syntax only
         - Start with: graph TD
         - One concept per node
         - Unique node IDs
-        - Short readable labels
         - Use --> for main flow
-        - Use -.-> for sub-process or explanation
-        - Do NOT use markdown code blocks
-        - No explanations, only diagram
+        - Use -.-> for sub-steps
+        - No markdown code blocks
+        - No explanations
 
         Content:
         {user_input}
@@ -253,13 +250,36 @@ if st.button("Generate Output"):
 
         elif mode == "Generate Flowchart":
             cleaned = clean_and_format_mermaid(raw_output)
+
             st.subheader("Generated Flowchart")
             st.markdown(f"<div class='mermaid'>{cleaned}</div>", unsafe_allow_html=True)
+
+            explanation_prompt = f"""
+            Explain the following process in simple, step-by-step language for a beginner:
+
+            {user_input}
+            """
+
+            explanation_response = client.chat.completions.create(
+                model="llama-3.1-8b-instant",
+                messages=[
+                    {"role": "system", "content": "You explain technical processes simply."},
+                    {"role": "user", "content": explanation_prompt}
+                ],
+                temperature=0.3,
+                max_tokens=300
+            )
+
+            explanation = explanation_response.choices[0].message.content
+
+            st.subheader("Explanation")
+            st.write(explanation)
 
             st.session_state.history.append({
                 "mode": mode,
                 "input": user_input,
-                "output": f"<div class='mermaid'>{cleaned}</div>"
+                "output": f"<div class='mermaid'>{cleaned}</div>",
+                "explanation": explanation
             })
 
         else:

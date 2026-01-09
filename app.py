@@ -1,6 +1,7 @@
 import streamlit as st
 from groq import Groq
 import os
+import re
 
 # -----------------------------
 # Page Config
@@ -11,57 +12,29 @@ st.set_page_config(
 )
 
 # -----------------------------
-# Streamlit-safe Background + Floating Illustrations
+# Simple Professional Styling
 # -----------------------------
 st.markdown("""
 <style>
-
-/* MAIN APP CONTAINER */
-section[data-testid="stAppViewContainer"] {
-    background: #ffffff;
+.flashcard {
+    border: 1px solid #e0e0e0;
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 15px;
+    background-color: #ffffff;
+    box-shadow: 0px 4px 10px rgba(0,0,0,0.05);
 }
 
-/* Remove default white blocks */
-div[data-testid="stVerticalBlock"] {
-    background: transparent;
+.flashcard h4 {
+    color: #2a5298;
+    margin-bottom: 10px;
 }
 
-/* Floating illustration images */
-.floating-graphics img {
-    position: fixed;
-    bottom: -160px;
-    width: 140px;
-    opacity: 0.15;
-    animation: floatUp linear infinite;
-    z-index: 0;
+.flashcard p {
+    color: #333333;
+    font-size: 15px;
 }
-
-/* Floating animation */
-@keyframes floatUp {
-    from { transform: translateY(0); }
-    to { transform: translateY(-120vh); }
-}
-
-/* Individual positions */
-.graphic1 { left: 5%; animation-duration: 22s; }
-.graphic2 { left: 30%; animation-duration: 26s; }
-.graphic3 { left: 60%; animation-duration: 24s; }
-.graphic4 { left: 80%; animation-duration: 28s; }
-
-/* Content above graphics */
-.main-content {
-    position: relative;
-    z-index: 2;
-}
-
 </style>
-
-<div class="floating-graphics">
-    <img class="graphic1" src="https://cdn-icons-png.flaticon.com/512/3135/3135755.png">
-    <img class="graphic2" src="https://cdn-icons-png.flaticon.com/512/1995/1995574.png">
-    <img class="graphic3" src="https://cdn-icons-png.flaticon.com/512/201/201818.png">
-    <img class="graphic4" src="https://cdn-icons-png.flaticon.com/512/2942/2942920.png">
-</div>
 """, unsafe_allow_html=True)
 
 # -----------------------------
@@ -78,13 +51,11 @@ client = Groq(api_key=api_key)
 # -----------------------------
 # UI
 # -----------------------------
-st.markdown('<div class="main-content">', unsafe_allow_html=True)
-
 st.title("AI-Powered Study Buddy")
 st.caption("Explain • Summarize • Quiz • Flashcards")
 
 option = st.selectbox(
-    "Select a study mode",
+    "Select a learning mode",
     [
         "Explain Topic",
         "Summarize Notes",
@@ -100,47 +71,66 @@ text = st.text_area(
 )
 
 # -----------------------------
-# Button Logic
+# Generate Button
 # -----------------------------
 if st.button("Generate"):
     if not text.strip():
         st.warning("Please enter some content.")
         st.stop()
 
-    if option == "Explain Topic":
-        prompt = f"Explain this topic in simple language:\n{text}"
-    elif option == "Summarize Notes":
-        prompt = f"Summarize the following notes:\n{text}"
-    elif option == "Generate Quiz":
-        prompt = f"Create 5 quiz questions with answers:\n{text}"
-    else:
+    if option == "Generate Flashcards":
         prompt = f"""
-        Create 6 flashcards.
-        Format:
+        Create exactly 5 study flashcards.
+        Use the format:
         Q: Question
         A: Answer
 
         Content:
         {text}
         """
+    elif option == "Explain Topic":
+        prompt = f"Explain this topic clearly for a student:\n{text}"
+    elif option == "Summarize Notes":
+        prompt = f"Summarize the following notes:\n{text}"
+    else:
+        prompt = f"Create 5 quiz questions with answers:\n{text}"
 
     with st.spinner("Generating..."):
         try:
             response = client.chat.completions.create(
                 model="llama-3.1-8b-instant",
                 messages=[
-                    {"role": "system", "content": "You are a professional study assistant."},
+                    {"role": "system", "content": "You are a professional academic assistant."},
                     {"role": "user", "content": prompt}
                 ],
                 temperature=0.4,
-                max_tokens=350
+                max_tokens=400
             )
 
-            st.success("Result")
-            st.write(response.choices[0].message.content)
+            output = response.choices[0].message.content
+
+            # -----------------------------
+            # Flashcard Rendering
+            # -----------------------------
+            if option == "Generate Flashcards":
+                flashcards = re.findall(r"Q:\s*(.*?)\nA:\s*(.*?)(?:\n|$)", output, re.S)
+
+                if not flashcards:
+                    st.warning("Could not format flashcards. Try again.")
+                else:
+                    st.subheader("Flashcards")
+                    for i, (q, a) in enumerate(flashcards, 1):
+                        st.markdown(f"""
+                        <div class="flashcard">
+                            <h4>Flashcard {i}</h4>
+                            <p><strong>Q:</strong> {q.strip()}</p>
+                            <p><strong>A:</strong> {a.strip()}</p>
+                        </div>
+                        """, unsafe_allow_html=True)
+            else:
+                st.success("Result")
+                st.write(output)
 
         except Exception as e:
             st.error("Groq API Error")
             st.code(str(e))
-
-st.markdown('</div>', unsafe_allow_html=True)

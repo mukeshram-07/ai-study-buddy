@@ -3,49 +3,60 @@ from groq import Groq
 import os
 import re
 
-# -----------------------------
+# -------------------------------------------------
 # Page Configuration
-# -----------------------------
+# -------------------------------------------------
 st.set_page_config(
     page_title="AI Study Buddy",
     layout="wide"
 )
 
-# -----------------------------
-# Session State
-# -----------------------------
+# -------------------------------------------------
+# Session State Initialization
+# -------------------------------------------------
 if "history" not in st.session_state:
     st.session_state.history = []
 
-if "expanded_index" not in st.session_state:
-    st.session_state.expanded_index = None
+if "selected_history" not in st.session_state:
+    st.session_state.selected_history = None
 
-# -----------------------------
-# Styling
-# -----------------------------
+# -------------------------------------------------
+# Theme-aware Styling
+# -------------------------------------------------
 st.markdown("""
 <style>
 .flashcard {
-    border: 1px solid #d1d5db;
-    border-radius: 8px;
+    border: 1px solid rgba(150, 150, 150, 0.25);
+    border-radius: 10px;
     padding: 18px;
-    margin-bottom: 14px;
-    background-color: #ffffff;
+    margin-bottom: 16px;
+    background-color: var(--background-color);
+    color: var(--text-color);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
+
 .flashcard-title {
     font-weight: 600;
-    margin-bottom: 8px;
+    margin-bottom: 10px;
+    color: var(--text-color);
 }
-.history-meta {
-    font-size: 13px;
-    color: #4b5563;
+
+.flashcard-content {
+    line-height: 1.6;
+    color: var(--text-color);
+}
+
+/* Dark theme fine-tuning */
+[data-theme="dark"] .flashcard {
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.6);
 }
 </style>
 """, unsafe_allow_html=True)
 
-# -----------------------------
+# -------------------------------------------------
 # Sidebar (Menu Bar)
-# -----------------------------
+# -------------------------------------------------
 st.sidebar.title("Application Menu")
 
 st.sidebar.markdown("### Study Mode")
@@ -64,27 +75,22 @@ st.sidebar.markdown("---")
 st.sidebar.markdown("### History")
 
 if not st.session_state.history:
-    st.sidebar.caption("No records available")
+    st.sidebar.caption("No history available")
 else:
     for i, item in enumerate(st.session_state.history):
-        with st.sidebar.expander(f"{i + 1}. {item['mode']}", expanded=False):
-            st.markdown(
-                f"<div class='history-meta'>Input preview:</div>",
-                unsafe_allow_html=True
-            )
+        with st.sidebar.expander(f"{i + 1}. {item['mode']}"):
             st.caption(item["input"][:120] + ("..." if len(item["input"]) > 120 else ""))
-
-            if st.button("Open", key=f"open_{i}"):
-                st.session_state.expanded_index = i
+            if st.button("Open Record", key=f"open_{i}"):
+                st.session_state.selected_history = i
 
 st.sidebar.markdown("---")
 if st.sidebar.button("Clear History"):
     st.session_state.history.clear()
-    st.session_state.expanded_index = None
+    st.session_state.selected_history = None
 
-# -----------------------------
+# -------------------------------------------------
 # Load API Key
-# -----------------------------
+# -------------------------------------------------
 api_key = os.getenv("GROQ_API_KEY")
 
 if not api_key:
@@ -93,17 +99,17 @@ if not api_key:
 
 client = Groq(api_key=api_key)
 
-# -----------------------------
-# Main Area
-# -----------------------------
+# -------------------------------------------------
+# Main Content
+# -------------------------------------------------
 st.title("AI-Powered Study Buddy")
-st.caption("Professional academic assistant")
+st.caption("Professional academic assistant for explanations, summaries, quizzes, and flashcards")
 
-# -----------------------------
-# Show Selected History
-# -----------------------------
-if st.session_state.expanded_index is not None:
-    record = st.session_state.history[st.session_state.expanded_index]
+# -------------------------------------------------
+# Display History Record
+# -------------------------------------------------
+if st.session_state.selected_history is not None:
+    record = st.session_state.history[st.session_state.selected_history]
 
     st.subheader("Previous Result")
     st.markdown(f"**Mode:** {record['mode']}")
@@ -111,12 +117,12 @@ if st.session_state.expanded_index is not None:
     st.divider()
 
     if record["mode"] == "Generate Flashcards":
-        for i, (q, a) in enumerate(record["output"], 1):
+        for idx, (q, a) in enumerate(record["output"], 1):
             st.markdown(f"""
             <div class="flashcard">
-                <div class="flashcard-title">Flashcard {i}</div>
-                <div><strong>Question:</strong> {q}</div>
-                <div><strong>Answer:</strong> {a}</div>
+                <div class="flashcard-title">Flashcard {idx}</div>
+                <div class="flashcard-content"><strong>Question:</strong> {q}</div>
+                <div class="flashcard-content"><strong>Answer:</strong> {a}</div>
             </div>
             """, unsafe_allow_html=True)
     else:
@@ -124,17 +130,20 @@ if st.session_state.expanded_index is not None:
 
     st.stop()
 
-# -----------------------------
-# New Request
-# -----------------------------
+# -------------------------------------------------
+# New Request Section
+# -------------------------------------------------
 st.subheader("New Request")
 
 user_input = st.text_area(
-    "Enter content",
+    "Enter study content",
     height=180,
-    placeholder="Example: Artificial Intelligence"
+    placeholder="Example: Explain Artificial Intelligence and its applications"
 )
 
+# -------------------------------------------------
+# Generate Output
+# -------------------------------------------------
 if st.button("Generate Output"):
     if not user_input.strip():
         st.warning("Input cannot be empty.")
@@ -143,7 +152,7 @@ if st.button("Generate Output"):
     if mode == "Generate Flashcards":
         prompt = f"""
         Create exactly 5 study flashcards.
-        Format:
+        Format strictly as:
         Q: Question
         A: Answer
 
@@ -151,50 +160,63 @@ if st.button("Generate Output"):
         {user_input}
         """
     elif mode == "Explain Topic":
-        prompt = f"Explain this topic clearly:\n{user_input}"
+        prompt = f"Explain the following topic clearly for a student:\n{user_input}"
     elif mode == "Summarize Notes":
-        prompt = f"Summarize the following notes:\n{user_input}"
+        prompt = f"Summarize the following notes concisely:\n{user_input}"
     else:
         prompt = f"Create 5 quiz questions with answers:\n{user_input}"
 
-    with st.spinner("Generating"):
-        response = client.chat.completions.create(
-            model="llama-3.1-8b-instant",
-            messages=[
-                {"role": "system", "content": "You are a professional academic assistant."},
-                {"role": "user", "content": prompt}
-            ],
-            temperature=0.4,
-            max_tokens=400
-        )
+    with st.spinner("Generating response"):
+        try:
+            response = client.chat.completions.create(
+                model="llama-3.1-8b-instant",
+                messages=[
+                    {"role": "system", "content": "You are a professional academic assistant."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.4,
+                max_tokens=400
+            )
 
-        result = response.choices[0].message.content
+            result = response.choices[0].message.content
 
-        if mode == "Generate Flashcards":
-            cards = re.findall(r"Q:\s*(.*?)\nA:\s*(.*?)(?:\n|$)", result, re.S)
+            # -----------------------------------------
+            # Flashcard Rendering
+            # -----------------------------------------
+            if mode == "Generate Flashcards":
+                cards = re.findall(
+                    r"Q:\s*(.*?)\nA:\s*(.*?)(?:\n|$)",
+                    result,
+                    re.S
+                )
 
-            st.subheader("Generated Flashcards")
-            for i, (q, a) in enumerate(cards, 1):
-                st.markdown(f"""
-                <div class="flashcard">
-                    <div class="flashcard-title">Flashcard {i}</div>
-                    <div><strong>Question:</strong> {q.strip()}</div>
-                    <div><strong>Answer:</strong> {a.strip()}</div>
-                </div>
-                """, unsafe_allow_html=True)
+                st.subheader("Generated Flashcards")
 
-            st.session_state.history.append({
-                "mode": mode,
-                "input": user_input,
-                "output": [(q.strip(), a.strip()) for q, a in cards]
-            })
-        else:
-            st.subheader("Result")
-            st.write(result)
+                for idx, (q, a) in enumerate(cards, 1):
+                    st.markdown(f"""
+                    <div class="flashcard">
+                        <div class="flashcard-title">Flashcard {idx}</div>
+                        <div class="flashcard-content"><strong>Question:</strong> {q.strip()}</div>
+                        <div class="flashcard-content"><strong>Answer:</strong> {a.strip()}</div>
+                    </div>
+                    """, unsafe_allow_html=True)
 
-            st.session_state.history.append({
-                "mode": mode,
-                "input": user_input,
-                "output": result
-            })
+                st.session_state.history.append({
+                    "mode": mode,
+                    "input": user_input,
+                    "output": [(q.strip(), a.strip()) for q, a in cards]
+                })
 
+            else:
+                st.subheader("Result")
+                st.write(result)
+
+                st.session_state.history.append({
+                    "mode": mode,
+                    "input": user_input,
+                    "output": result
+                })
+
+        except Exception as e:
+            st.error("Request failed.")
+            st.code(str(e))

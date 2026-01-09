@@ -11,66 +11,44 @@ st.set_page_config(
 )
 
 # -----------------------------
-# Animated Background + Floating Graphics
+# Streamlit-safe Background + Floating Illustrations
 # -----------------------------
 st.markdown("""
 <style>
 
-/* Gradient background */
-body {
-    background: linear-gradient(120deg, #1e3c72, #2a5298);
-    background-size: 200% 200%;
-    animation: gradientBG 10s ease infinite;
+/* MAIN APP CONTAINER */
+section[data-testid="stAppViewContainer"] {
+    background: #ffffff;
 }
 
-@keyframes gradientBG {
-    0% {background-position: 0% 50%;}
-    50% {background-position: 100% 50%;}
-    100% {background-position: 0% 50%;}
+/* Remove default white blocks */
+div[data-testid="stVerticalBlock"] {
+    background: transparent;
 }
 
-/* Floating illustration container */
+/* Floating illustration images */
 .floating-graphics img {
     position: fixed;
-    bottom: -150px;
-    width: 120px;
-    opacity: 0.18;
+    bottom: -160px;
+    width: 140px;
+    opacity: 0.15;
     animation: floatUp linear infinite;
     z-index: 0;
 }
 
 /* Floating animation */
 @keyframes floatUp {
-    from {
-        transform: translateY(0);
-    }
-    to {
-        transform: translateY(-120vh);
-    }
+    from { transform: translateY(0); }
+    to { transform: translateY(-120vh); }
 }
 
-/* Individual image placement */
-.graphic1 {
-    left: 5%;
-    animation-duration: 22s;
-}
+/* Individual positions */
+.graphic1 { left: 5%; animation-duration: 22s; }
+.graphic2 { left: 30%; animation-duration: 26s; }
+.graphic3 { left: 60%; animation-duration: 24s; }
+.graphic4 { left: 80%; animation-duration: 28s; }
 
-.graphic2 {
-    left: 30%;
-    animation-duration: 26s;
-}
-
-.graphic3 {
-    left: 60%;
-    animation-duration: 24s;
-}
-
-.graphic4 {
-    left: 80%;
-    animation-duration: 28s;
-}
-
-/* Keep content above graphics */
+/* Content above graphics */
 .main-content {
     position: relative;
     z-index: 2;
@@ -92,21 +70,21 @@ body {
 api_key = os.getenv("GROQ_API_KEY")
 
 if not api_key:
-    st.error("GROQ_API_KEY not found. Please add it to environment variables.")
+    st.error("GROQ_API_KEY not found.")
     st.stop()
 
 client = Groq(api_key=api_key)
 
 # -----------------------------
-# UI Content
+# UI
 # -----------------------------
 st.markdown('<div class="main-content">', unsafe_allow_html=True)
 
 st.title("AI-Powered Study Buddy")
-st.caption("Explain concepts • Summarize notes • Generate quizzes • Create flashcards")
+st.caption("Explain • Summarize • Quiz • Flashcards")
 
 option = st.selectbox(
-    "Select a learning mode",
+    "Select a study mode",
     [
         "Explain Topic",
         "Summarize Notes",
@@ -118,7 +96,7 @@ option = st.selectbox(
 text = st.text_area(
     "Enter your study content",
     height=180,
-    placeholder="Example: Explain Artificial Intelligence and its applications"
+    placeholder="Example: Artificial Intelligence"
 )
 
 # -----------------------------
@@ -129,38 +107,16 @@ if st.button("Generate"):
         st.warning("Please enter some content.")
         st.stop()
 
-    if len(text) > 1500:
-        st.warning("Input too long. Please shorten it.")
-        st.stop()
-
     if option == "Explain Topic":
-        prompt = f"""
-        Explain the following topic clearly in simple student-friendly language.
-
-        Topic:
-        {text}
-        """
-
+        prompt = f"Explain this topic in simple language:\n{text}"
     elif option == "Summarize Notes":
-        prompt = f"""
-        Summarize the following notes clearly using bullet points.
-
-        Notes:
-        {text}
-        """
-
+        prompt = f"Summarize the following notes:\n{text}"
     elif option == "Generate Quiz":
-        prompt = f"""
-        Create 5 quiz questions with answers based on the topic.
-
-        Topic:
-        {text}
-        """
-
+        prompt = f"Create 5 quiz questions with answers:\n{text}"
     else:
         prompt = f"""
-        Create 6 study flashcards.
-        Format strictly as:
+        Create 6 flashcards.
+        Format:
         Q: Question
         A: Answer
 
@@ -173,7 +129,7 @@ if st.button("Generate"):
             response = client.chat.completions.create(
                 model="llama-3.1-8b-instant",
                 messages=[
-                    {"role": "system", "content": "You are a professional academic study assistant."},
+                    {"role": "system", "content": "You are a professional study assistant."},
                     {"role": "user", "content": prompt}
                 ],
                 temperature=0.4,

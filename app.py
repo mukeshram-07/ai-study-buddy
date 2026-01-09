@@ -17,8 +17,8 @@ st.set_page_config(
 if "history" not in st.session_state:
     st.session_state.history = []
 
-if "view_index" not in st.session_state:
-    st.session_state.view_index = None
+if "expanded_index" not in st.session_state:
+    st.session_state.expanded_index = None
 
 # -----------------------------
 # Styling
@@ -36,15 +36,9 @@ st.markdown("""
     font-weight: 600;
     margin-bottom: 8px;
 }
-.history-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 8px;
-}
-.history-label {
-    font-size: 14px;
-    color: #374151;
+.history-meta {
+    font-size: 13px;
+    color: #4b5563;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -53,8 +47,8 @@ st.markdown("""
 # Sidebar (Menu Bar)
 # -----------------------------
 st.sidebar.title("Application Menu")
-st.sidebar.markdown("### Study Mode")
 
+st.sidebar.markdown("### Study Mode")
 mode = st.sidebar.selectbox(
     "Mode",
     [
@@ -73,20 +67,20 @@ if not st.session_state.history:
     st.sidebar.caption("No records available")
 else:
     for i, item in enumerate(st.session_state.history):
-        col1, col2 = st.sidebar.columns([3, 1])
-        with col1:
+        with st.sidebar.expander(f"{i + 1}. {item['mode']}", expanded=False):
             st.markdown(
-                f"<div class='history-label'>{i + 1}. {item['mode']}</div>",
+                f"<div class='history-meta'>Input preview:</div>",
                 unsafe_allow_html=True
             )
-        with col2:
-            if st.button("View", key=f"view_{i}"):
-                st.session_state.view_index = i
+            st.caption(item["input"][:120] + ("..." if len(item["input"]) > 120 else ""))
+
+            if st.button("Open", key=f"open_{i}"):
+                st.session_state.expanded_index = i
 
 st.sidebar.markdown("---")
 if st.sidebar.button("Clear History"):
     st.session_state.history.clear()
-    st.session_state.view_index = None
+    st.session_state.expanded_index = None
 
 # -----------------------------
 # Load API Key
@@ -106,10 +100,10 @@ st.title("AI-Powered Study Buddy")
 st.caption("Professional academic assistant")
 
 # -----------------------------
-# View History Content
+# Show Selected History
 # -----------------------------
-if st.session_state.view_index is not None:
-    record = st.session_state.history[st.session_state.view_index]
+if st.session_state.expanded_index is not None:
+    record = st.session_state.history[st.session_state.expanded_index]
 
     st.subheader("Previous Result")
     st.markdown(f"**Mode:** {record['mode']}")
@@ -131,7 +125,7 @@ if st.session_state.view_index is not None:
     st.stop()
 
 # -----------------------------
-# New Request Section
+# New Request
 # -----------------------------
 st.subheader("New Request")
 
@@ -203,3 +197,4 @@ if st.button("Generate Output"):
                 "input": user_input,
                 "output": result
             })
+

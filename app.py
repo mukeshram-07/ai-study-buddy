@@ -17,32 +17,34 @@ st.set_page_config(
 if "history" not in st.session_state:
     st.session_state.history = []
 
-if "active_history" not in st.session_state:
-    st.session_state.active_history = None
+if "view_index" not in st.session_state:
+    st.session_state.view_index = None
 
 # -----------------------------
-# Styling (Professional)
+# Styling
 # -----------------------------
 st.markdown("""
 <style>
 .flashcard {
-    border: 1px solid #dcdcdc;
+    border: 1px solid #d1d5db;
     border-radius: 8px;
-    padding: 20px;
-    margin-bottom: 16px;
+    padding: 18px;
+    margin-bottom: 14px;
     background-color: #ffffff;
 }
 .flashcard-title {
     font-weight: 600;
-    color: #1f2937;
-    margin-bottom: 10px;
+    margin-bottom: 8px;
 }
-.flashcard-text {
+.history-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+.history-label {
+    font-size: 14px;
     color: #374151;
-    font-size: 15px;
-}
-.sidebar-section {
-    margin-bottom: 20px;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -51,11 +53,11 @@ st.markdown("""
 # Sidebar (Menu Bar)
 # -----------------------------
 st.sidebar.title("Application Menu")
-
 st.sidebar.markdown("### Study Mode")
-mode = st.sidebar.radio(
-    label="Select mode",
-    options=[
+
+mode = st.sidebar.selectbox(
+    "Mode",
+    [
         "Explain Topic",
         "Summarize Notes",
         "Generate Quiz",
@@ -68,24 +70,23 @@ st.sidebar.markdown("---")
 st.sidebar.markdown("### History")
 
 if not st.session_state.history:
-    st.sidebar.caption("No history available")
+    st.sidebar.caption("No records available")
 else:
-    history_labels = [
-        f"{i + 1}. {item['mode']}"
-        for i, item in enumerate(st.session_state.history)
-    ]
-    selected = st.sidebar.radio(
-        label="History items",
-        options=list(range(len(history_labels))),
-        format_func=lambda x: history_labels[x],
-        index=None
-    )
-    st.session_state.active_history = selected
+    for i, item in enumerate(st.session_state.history):
+        col1, col2 = st.sidebar.columns([3, 1])
+        with col1:
+            st.markdown(
+                f"<div class='history-label'>{i + 1}. {item['mode']}</div>",
+                unsafe_allow_html=True
+            )
+        with col2:
+            if st.button("View", key=f"view_{i}"):
+                st.session_state.view_index = i
 
 st.sidebar.markdown("---")
 if st.sidebar.button("Clear History"):
     st.session_state.history.clear()
-    st.session_state.active_history = None
+    st.session_state.view_index = None
 
 # -----------------------------
 # Load API Key
@@ -99,20 +100,20 @@ if not api_key:
 client = Groq(api_key=api_key)
 
 # -----------------------------
-# Main Content Area
+# Main Area
 # -----------------------------
 st.title("AI-Powered Study Buddy")
-st.caption("Academic assistance for explanation, summarization, quizzes, and flashcards")
+st.caption("Professional academic assistant")
 
 # -----------------------------
-# Show History Content
+# View History Content
 # -----------------------------
-if st.session_state.active_history is not None:
-    record = st.session_state.history[st.session_state.active_history]
+if st.session_state.view_index is not None:
+    record = st.session_state.history[st.session_state.view_index]
 
     st.subheader("Previous Result")
     st.markdown(f"**Mode:** {record['mode']}")
-    st.markdown(f"**Input Content:** {record['input']}")
+    st.markdown(f"**Input:** {record['input']}")
     st.divider()
 
     if record["mode"] == "Generate Flashcards":
@@ -120,8 +121,8 @@ if st.session_state.active_history is not None:
             st.markdown(f"""
             <div class="flashcard">
                 <div class="flashcard-title">Flashcard {i}</div>
-                <div class="flashcard-text"><strong>Question:</strong> {q}</div>
-                <div class="flashcard-text"><strong>Answer:</strong> {a}</div>
+                <div><strong>Question:</strong> {q}</div>
+                <div><strong>Answer:</strong> {a}</div>
             </div>
             """, unsafe_allow_html=True)
     else:
@@ -130,19 +131,16 @@ if st.session_state.active_history is not None:
     st.stop()
 
 # -----------------------------
-# Input Section
+# New Request Section
 # -----------------------------
 st.subheader("New Request")
 
 user_input = st.text_area(
-    "Enter study content",
+    "Enter content",
     height=180,
-    placeholder="Example: Explain artificial intelligence and its applications"
+    placeholder="Example: Artificial Intelligence"
 )
 
-# -----------------------------
-# Generate Button
-# -----------------------------
 if st.button("Generate Output"):
     if not user_input.strip():
         st.warning("Input cannot be empty.")
@@ -159,60 +157,49 @@ if st.button("Generate Output"):
         {user_input}
         """
     elif mode == "Explain Topic":
-        prompt = f"Explain the following topic clearly for a student:\n{user_input}"
+        prompt = f"Explain this topic clearly:\n{user_input}"
     elif mode == "Summarize Notes":
-        prompt = f"Summarize the following notes in a concise manner:\n{user_input}"
+        prompt = f"Summarize the following notes:\n{user_input}"
     else:
         prompt = f"Create 5 quiz questions with answers:\n{user_input}"
 
-    with st.spinner("Generating response"):
-        try:
-            response = client.chat.completions.create(
-                model="llama-3.1-8b-instant",
-                messages=[
-                    {"role": "system", "content": "You are a professional academic assistant."},
-                    {"role": "user", "content": prompt}
-                ],
-                temperature=0.4,
-                max_tokens=400
-            )
+    with st.spinner("Generating"):
+        response = client.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            messages=[
+                {"role": "system", "content": "You are a professional academic assistant."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.4,
+            max_tokens=400
+        )
 
-            output = response.choices[0].message.content
+        result = response.choices[0].message.content
 
-            if mode == "Generate Flashcards":
-                cards = re.findall(
-                    r"Q:\s*(.*?)\nA:\s*(.*?)(?:\n|$)",
-                    output,
-                    re.S
-                )
+        if mode == "Generate Flashcards":
+            cards = re.findall(r"Q:\s*(.*?)\nA:\s*(.*?)(?:\n|$)", result, re.S)
 
-                st.subheader("Generated Flashcards")
+            st.subheader("Generated Flashcards")
+            for i, (q, a) in enumerate(cards, 1):
+                st.markdown(f"""
+                <div class="flashcard">
+                    <div class="flashcard-title">Flashcard {i}</div>
+                    <div><strong>Question:</strong> {q.strip()}</div>
+                    <div><strong>Answer:</strong> {a.strip()}</div>
+                </div>
+                """, unsafe_allow_html=True)
 
-                for i, (q, a) in enumerate(cards, 1):
-                    st.markdown(f"""
-                    <div class="flashcard">
-                        <div class="flashcard-title">Flashcard {i}</div>
-                        <div class="flashcard-text"><strong>Question:</strong> {q.strip()}</div>
-                        <div class="flashcard-text"><strong>Answer:</strong> {a.strip()}</div>
-                    </div>
-                    """, unsafe_allow_html=True)
+            st.session_state.history.append({
+                "mode": mode,
+                "input": user_input,
+                "output": [(q.strip(), a.strip()) for q, a in cards]
+            })
+        else:
+            st.subheader("Result")
+            st.write(result)
 
-                st.session_state.history.append({
-                    "mode": mode,
-                    "input": user_input,
-                    "output": [(q.strip(), a.strip()) for q, a in cards]
-                })
-
-            else:
-                st.subheader("Result")
-                st.write(output)
-
-                st.session_state.history.append({
-                    "mode": mode,
-                    "input": user_input,
-                    "output": output
-                })
-
-        except Exception as e:
-            st.error("Model request failed.")
-            st.code(str(e))
+            st.session_state.history.append({
+                "mode": mode,
+                "input": user_input,
+                "output": result
+            })

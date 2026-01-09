@@ -11,15 +11,16 @@ st.set_page_config(
 )
 
 # -----------------------------
-# Animated Background + Floating Icons
+# Animated Background + Floating Graphics
 # -----------------------------
 st.markdown("""
 <style>
+
 /* Gradient background */
 body {
-    background: linear-gradient(-45deg, #1e3c72, #2a5298);
-    background-size: 400% 400%;
-    animation: gradientBG 12s ease infinite;
+    background: linear-gradient(120deg, #1e3c72, #2a5298);
+    background-size: 200% 200%;
+    animation: gradientBG 10s ease infinite;
 }
 
 @keyframes gradientBG {
@@ -28,47 +29,60 @@ body {
     100% {background-position: 0% 50%;}
 }
 
-/* Floating icons */
-.floating-icons span {
+/* Floating illustration container */
+.floating-graphics img {
     position: fixed;
-    bottom: -50px;
-    font-size: 28px;
-    opacity: 0.25;
+    bottom: -150px;
+    width: 120px;
+    opacity: 0.18;
     animation: floatUp linear infinite;
     z-index: 0;
 }
 
+/* Floating animation */
 @keyframes floatUp {
     from {
         transform: translateY(0);
     }
     to {
-        transform: translateY(-110vh);
+        transform: translateY(-120vh);
     }
 }
 
-/* Individual icon positions & speeds */
-.floating-icons span:nth-child(1) { left: 10%; animation-duration: 14s; }
-.floating-icons span:nth-child(2) { left: 25%; animation-duration: 18s; }
-.floating-icons span:nth-child(3) { left: 40%; animation-duration: 16s; }
-.floating-icons span:nth-child(4) { left: 55%; animation-duration: 20s; }
-.floating-icons span:nth-child(5) { left: 70%; animation-duration: 17s; }
-.floating-icons span:nth-child(6) { left: 85%; animation-duration: 19s; }
+/* Individual image placement */
+.graphic1 {
+    left: 5%;
+    animation-duration: 22s;
+}
 
-/* Content on top */
+.graphic2 {
+    left: 30%;
+    animation-duration: 26s;
+}
+
+.graphic3 {
+    left: 60%;
+    animation-duration: 24s;
+}
+
+.graphic4 {
+    left: 80%;
+    animation-duration: 28s;
+}
+
+/* Keep content above graphics */
 .main-content {
     position: relative;
     z-index: 2;
 }
+
 </style>
 
-<div class="floating-icons">
-    <span>📘</span>
-    <span>🎓</span>
-    <span>📚</span>
-    <span>✏️</span>
-    <span>💡</span>
-    <span>🧠</span>
+<div class="floating-graphics">
+    <img class="graphic1" src="https://cdn-icons-png.flaticon.com/512/3135/3135755.png">
+    <img class="graphic2" src="https://cdn-icons-png.flaticon.com/512/1995/1995574.png">
+    <img class="graphic3" src="https://cdn-icons-png.flaticon.com/512/201/201818.png">
+    <img class="graphic4" src="https://cdn-icons-png.flaticon.com/512/2942/2942920.png">
 </div>
 """, unsafe_allow_html=True)
 
@@ -84,15 +98,15 @@ if not api_key:
 client = Groq(api_key=api_key)
 
 # -----------------------------
-# UI
+# UI Content
 # -----------------------------
 st.markdown('<div class="main-content">', unsafe_allow_html=True)
 
 st.title("AI-Powered Study Buddy")
-st.caption("Explain • Summarize • Quiz • Flashcards")
+st.caption("Explain concepts • Summarize notes • Generate quizzes • Create flashcards")
 
 option = st.selectbox(
-    "Select a study mode",
+    "Select a learning mode",
     [
         "Explain Topic",
         "Summarize Notes",
@@ -104,7 +118,7 @@ option = st.selectbox(
 text = st.text_area(
     "Enter your study content",
     height=180,
-    placeholder="Example: Artificial Intelligence and its applications"
+    placeholder="Example: Explain Artificial Intelligence and its applications"
 )
 
 # -----------------------------
@@ -121,8 +135,7 @@ if st.button("Generate"):
 
     if option == "Explain Topic":
         prompt = f"""
-        Explain the following topic in simple, student-friendly language.
-        Use examples where helpful.
+        Explain the following topic clearly in simple student-friendly language.
 
         Topic:
         {text}
@@ -130,8 +143,7 @@ if st.button("Generate"):
 
     elif option == "Summarize Notes":
         prompt = f"""
-        Summarize the following notes clearly.
-        Use bullet points.
+        Summarize the following notes clearly using bullet points.
 
         Notes:
         {text}
@@ -139,14 +151,13 @@ if st.button("Generate"):
 
     elif option == "Generate Quiz":
         prompt = f"""
-        Create 5 quiz questions with answers.
-        Mix conceptual and factual questions.
+        Create 5 quiz questions with answers based on the topic.
 
         Topic:
         {text}
         """
 
-    else:  # Flashcards
+    else:
         prompt = f"""
         Create 6 study flashcards.
         Format strictly as:
@@ -157,9 +168,9 @@ if st.button("Generate"):
         {text}
         """
 
-    with st.spinner("Processing..."):
+    with st.spinner("Generating..."):
         try:
-            completion = client.chat.completions.create(
+            response = client.chat.completions.create(
                 model="llama-3.1-8b-instant",
                 messages=[
                     {"role": "system", "content": "You are a professional academic study assistant."},
@@ -169,8 +180,8 @@ if st.button("Generate"):
                 max_tokens=350
             )
 
-            st.success("Generated Output")
-            st.write(completion.choices[0].message.content)
+            st.success("Result")
+            st.write(response.choices[0].message.content)
 
         except Exception as e:
             st.error("Groq API Error")

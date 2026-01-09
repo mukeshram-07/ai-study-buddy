@@ -18,9 +18,6 @@ if "history" not in st.session_state:
 if "selected_history" not in st.session_state:
     st.session_state.selected_history = None
 
-if "view_mode" not in st.session_state:
-    st.session_state.view_mode = "home"   # home | history
-
 # -------------------------------------------------
 # Load API Keys
 # -------------------------------------------------
@@ -34,7 +31,7 @@ if not groq_key:
 client = Groq(api_key=groq_key)
 
 # -------------------------------------------------
-# Styling
+# Styling (Theme-aware + Timeline)
 # -------------------------------------------------
 st.markdown("""
 <style>
@@ -96,9 +93,11 @@ st.markdown("""
 def fetch_images_pexels(topic, count=4):
     if not pexels_key:
         return []
+
     url = "https://api.pexels.com/v1/search"
     headers = {"Authorization": pexels_key}
     params = {"query": topic, "per_page": count}
+
     try:
         r = requests.get(url, headers=headers, params=params, timeout=5)
         data = r.json()
@@ -108,21 +107,28 @@ def fetch_images_pexels(topic, count=4):
 
 def show_images(topic):
     images = fetch_images_pexels(topic)
-    if images:
-        st.subheader("Related Visuals")
-        cols = st.columns(len(images))
-        for col, img in zip(cols, images):
-            col.image(img, use_container_width=True)
+    if not images:
+        st.info("No related images available.")
+        return
+
+    st.subheader("Related Visuals")
+    cols = st.columns(len(images))
+    for col, img in zip(cols, images):
+        col.image(img, use_container_width=True)
 
 def parse_flashcards(text):
-    cards = re.findall(r"Q\s*:\s*(.*?)\nA\s*:\s*(.*?)(?=\nQ|\Z)", text, re.S)
+    cards = re.findall(
+        r"Q\s*[:\-]\s*(.*?)\nA\s*[:\-]\s*(.*?)(?=\nQ|\Z)",
+        text, re.S | re.I
+    )
     if cards:
-        return cards
-    lines = [l for l in text.split("\n") if l.strip()]
+        return [(q.strip(), a.strip()) for q, a in cards]
+
+    lines = [l.strip() for l in text.split("\n") if l.strip()]
     return [(lines[i], lines[i+1]) for i in range(0, len(lines)-1, 2)]
 
 def clean_mermaid(raw):
-    raw = re.sub(r"```mermaid|```", "", raw, flags=re.IGNORECASE)
+    raw = re.sub(r"```mermaid|```", "", raw, flags=re.IGNORECASE).strip()
     raw = raw.replace(" --> ", "\n--> ").replace(" -.-> ", "\n-.-> ")
     lines = ["graph TD"]
     for line in raw.splitlines():
@@ -147,18 +153,30 @@ def extract_steps(mermaid):
 st.sidebar.title("Application Menu")
 mode = st.sidebar.selectbox(
     "Study Mode",
-    ["Explain Topic", "Summarize Notes", "Generate Quiz", "Generate Flashcards", "Generate Flowchart"]
+    [
+        "Explain Topic",
+        "Summarize Notes",
+        "Generate Quiz",
+        "Generate Flashcards",
+        "Generate Flowchart"
+    ]
 )
 
 st.sidebar.markdown("---")
 st.sidebar.markdown("History")
 
-for i, h in enumerate(st.session_state.history):
-    with st.sidebar.expander(f"{i+1}. {h['mode']}"):
-        st.caption(h["input"][:100])
-        if st.button("Open", key=f"h{i}"):
-            st.session_state.selected_history = i
-            st.session_state.view_mode = "history"
+if st.session_state.history:
+    for i, h in enumerate(st.session_state.history):
+        with st.sidebar.expander(f"{i+1}. {h['mode']}"):
+            st.caption(h["input"][:100])
+            if st.button("Open", key=f"h{i}"):
+                st.session_state.selected_history = i
+else:
+    st.sidebar.caption("No history available")
+
+if st.sidebar.button("Clear History"):
+    st.session_state.history.clear()
+    st.session_state.selected_history = None
 
 # -------------------------------------------------
 # Header
@@ -167,33 +185,28 @@ st.title("AI-Powered Study Buddy")
 st.caption("Explain topics, summarize notes, generate quizzes, flashcards, flowcharts, and related visuals")
 
 # -------------------------------------------------
-# HISTORY VIEW (FIXED)
+# History View
 # -------------------------------------------------
-if st.session_state.view_mode == "history":
+if st.session_state.selected_history is not None:
     rec = st.session_state.history[st.session_state.selected_history]
-
     st.subheader("Previous Result")
-    st.markdown(f"**Mode:** {rec['mode']}")
-    st.markdown(f"**Input:** {rec['input']}")
-    st.divider()
     st.write(rec["output"])
-
-    if st.button("Back to Home"):
-        st.session_state.view_mode = "home"
-        st.session_state.selected_history = None
-
     st.stop()
 
 # -------------------------------------------------
-# HOME VIEW
+# Input
 # -------------------------------------------------
 user_input = st.text_area("Enter study content", height=160)
 
+# -------------------------------------------------
+# Generate Output
+# -------------------------------------------------
 if st.button("Generate Output"):
     if not user_input.strip():
         st.warning("Input cannot be empty.")
         st.stop()
 
+    # ---------- Explain Topic ----------
     if mode == "Explain Topic":
         prompt = f"Explain the following topic clearly with examples:\n{user_input}"
         res = client.chat.completions.create(
@@ -202,12 +215,15 @@ if st.button("Generate Output"):
             temperature=0.3,
             max_tokens=900
         )
-        output = res.choices[0].message.content
-        st.write(output)
+        explanation = res.choices[0].message.content
+        st.subheader("Explanation")
+        st.write(explanation)
         show_images(user_input)
+        output = explanation
 
+    # ---------- Summarize ----------
     elif mode == "Summarize Notes":
-        prompt = f"Summarize the following notes:\n{user_input}"
+        prompt = f"Summarize the following notes in bullet points:\n{user_input}"
         res = client.chat.completions.create(
             model="llama-3.1-8b-instant",
             messages=[{"role": "user", "content": prompt}],
@@ -217,8 +233,12 @@ if st.button("Generate Output"):
         output = res.choices[0].message.content
         st.write(output)
 
+    # ---------- Quiz ----------
     elif mode == "Generate Quiz":
-        prompt = f"Create 5 quiz questions with answers strictly about: {user_input}"
+        prompt = f"""
+        Create exactly 5 quiz questions WITH answers.
+        Strictly based only on this topic: "{user_input}"
+        """
         res = client.chat.completions.create(
             model="llama-3.1-8b-instant",
             messages=[{"role": "user", "content": prompt}],
@@ -228,8 +248,15 @@ if st.button("Generate Output"):
         output = res.choices[0].message.content
         st.write(output)
 
+    # ---------- Flashcards ----------
     elif mode == "Generate Flashcards":
-        prompt = f"Create 5 flashcards in Q/A format on: {user_input}"
+        prompt = f"""
+        Create exactly 5 flashcards.
+        Format:
+        Q: Question
+        A: Answer
+        Topic: "{user_input}"
+        """
         res = client.chat.completions.create(
             model="llama-3.1-8b-instant",
             messages=[{"role": "user", "content": prompt}],
@@ -237,12 +264,24 @@ if st.button("Generate Output"):
             max_tokens=800
         )
         cards = parse_flashcards(res.choices[0].message.content)
+        st.subheader("Flashcards")
         for q, a in cards:
-            st.markdown(f"<div class='flashcard'><b>Q:</b> {q}<br><b>A:</b> {a}</div>", unsafe_allow_html=True)
+            st.markdown(f"""
+            <div class="flashcard">
+                <div class="flashcard-q">Q: {q}</div>
+                <div>A: {a}</div>
+            </div>
+            """, unsafe_allow_html=True)
         output = cards
 
+    # ---------- Flowchart ----------
     else:
-        prompt = f"Create a Mermaid flowchart for: {user_input}"
+        prompt = f"""
+        Convert the topic into a Mermaid flowchart.
+        Use --> for main steps and -.-> for optional steps.
+        Start with graph TD.
+        Topic: {user_input}
+        """
         res = client.chat.completions.create(
             model="llama-3.1-8b-instant",
             messages=[{"role": "user", "content": prompt}],
@@ -250,12 +289,30 @@ if st.button("Generate Output"):
             max_tokens=700
         )
         flow = clean_mermaid(res.choices[0].message.content)
+        st.subheader("Visual Flowchart")
         st.markdown(f"<div class='mermaid'>{flow}</div>", unsafe_allow_html=True)
+
         steps = extract_steps(flow)
-        for i, s in enumerate(steps, 1):
-            st.write(f"{i}. {s}")
+        st.subheader("Step-by-Step Flow")
+        timeline = "<div class='timeline'>"
+        for i, step in enumerate(steps, 1):
+            timeline += f"<div class='step'><strong>{i}. {step}</strong></div>"
+        timeline += "</div>"
+        st.markdown(timeline, unsafe_allow_html=True)
+
+        exp_prompt = f"Explain this process in simple numbered steps:\n{user_input}"
+        exp = client.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            messages=[{"role": "user", "content": exp_prompt}],
+            temperature=0.3,
+            max_tokens=900
+        )
+        st.subheader("Explanation")
+        st.write(exp.choices[0].message.content)
+        show_images(user_input + " diagram")
         output = flow
 
+    # ---------- Save History ----------
     st.session_state.history.append({
         "mode": mode,
         "input": user_input,

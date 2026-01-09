@@ -3,38 +3,82 @@ from groq import Groq
 import os
 
 # -----------------------------
-# Page config
+# Page Config
 # -----------------------------
 st.set_page_config(
-    page_title="AI-Powered Study Buddy (Groq)",
+    page_title="AI Study Buddy",
     layout="centered"
 )
 
 # -----------------------------
-# Animated background
+# Animated Background + Floating Icons
 # -----------------------------
 st.markdown("""
 <style>
+/* Gradient background */
 body {
-    background: linear-gradient(-45deg, #1f4037, #99f2c8);
+    background: linear-gradient(-45deg, #1e3c72, #2a5298);
     background-size: 400% 400%;
-    animation: bg 10s ease infinite;
+    animation: gradientBG 12s ease infinite;
 }
-@keyframes bg {
-    0% {background-position:0% 50%;}
-    50% {background-position:100% 50%;}
-    100% {background-position:0% 50%;}
+
+@keyframes gradientBG {
+    0% {background-position: 0% 50%;}
+    50% {background-position: 100% 50%;}
+    100% {background-position: 0% 50%;}
+}
+
+/* Floating icons */
+.floating-icons span {
+    position: fixed;
+    bottom: -50px;
+    font-size: 28px;
+    opacity: 0.25;
+    animation: floatUp linear infinite;
+    z-index: 0;
+}
+
+@keyframes floatUp {
+    from {
+        transform: translateY(0);
+    }
+    to {
+        transform: translateY(-110vh);
+    }
+}
+
+/* Individual icon positions & speeds */
+.floating-icons span:nth-child(1) { left: 10%; animation-duration: 14s; }
+.floating-icons span:nth-child(2) { left: 25%; animation-duration: 18s; }
+.floating-icons span:nth-child(3) { left: 40%; animation-duration: 16s; }
+.floating-icons span:nth-child(4) { left: 55%; animation-duration: 20s; }
+.floating-icons span:nth-child(5) { left: 70%; animation-duration: 17s; }
+.floating-icons span:nth-child(6) { left: 85%; animation-duration: 19s; }
+
+/* Content on top */
+.main-content {
+    position: relative;
+    z-index: 2;
 }
 </style>
+
+<div class="floating-icons">
+    <span>📘</span>
+    <span>🎓</span>
+    <span>📚</span>
+    <span>✏️</span>
+    <span>💡</span>
+    <span>🧠</span>
+</div>
 """, unsafe_allow_html=True)
 
 # -----------------------------
-# Load API key
+# Load API Key
 # -----------------------------
 api_key = os.getenv("GROQ_API_KEY")
 
 if not api_key:
-    st.error("GROQ_API_KEY not found in Streamlit Secrets.")
+    st.error("GROQ_API_KEY not found. Please add it to environment variables.")
     st.stop()
 
 client = Groq(api_key=api_key)
@@ -42,11 +86,13 @@ client = Groq(api_key=api_key)
 # -----------------------------
 # UI
 # -----------------------------
+st.markdown('<div class="main-content">', unsafe_allow_html=True)
+
 st.title("AI-Powered Study Buddy")
-st.caption("Explain topics • Summarize notes • Generate quizzes • Create flashcards")
+st.caption("Explain • Summarize • Quiz • Flashcards")
 
 option = st.selectbox(
-    "Select a study tool",
+    "Select a study mode",
     [
         "Explain Topic",
         "Summarize Notes",
@@ -56,13 +102,13 @@ option = st.selectbox(
 )
 
 text = st.text_area(
-    "Enter your content",
+    "Enter your study content",
     height=180,
     placeholder="Example: Artificial Intelligence and its applications"
 )
 
 # -----------------------------
-# Button logic
+# Button Logic
 # -----------------------------
 if st.button("Generate"):
     if not text.strip():
@@ -75,8 +121,8 @@ if st.button("Generate"):
 
     if option == "Explain Topic":
         prompt = f"""
-        Explain the following topic in clear, simple, student-friendly language.
-        Use examples where appropriate.
+        Explain the following topic in simple, student-friendly language.
+        Use examples where helpful.
 
         Topic:
         {text}
@@ -85,7 +131,7 @@ if st.button("Generate"):
     elif option == "Summarize Notes":
         prompt = f"""
         Summarize the following notes clearly.
-        Use bullet points and keep it concise.
+        Use bullet points.
 
         Notes:
         {text}
@@ -93,16 +139,16 @@ if st.button("Generate"):
 
     elif option == "Generate Quiz":
         prompt = f"""
-        Create 5 quiz questions with answers based on the following topic.
+        Create 5 quiz questions with answers.
         Mix conceptual and factual questions.
 
         Topic:
         {text}
         """
 
-    else:  # Generate Flashcards
+    else:  # Flashcards
         prompt = f"""
-        Create 6 study flashcards from the following content.
+        Create 6 study flashcards.
         Format strictly as:
         Q: Question
         A: Answer
@@ -111,7 +157,7 @@ if st.button("Generate"):
         {text}
         """
 
-    with st.spinner("Generating response..."):
+    with st.spinner("Processing..."):
         try:
             completion = client.chat.completions.create(
                 model="llama-3.1-8b-instant",
@@ -123,11 +169,11 @@ if st.button("Generate"):
                 max_tokens=350
             )
 
-            output = completion.choices[0].message.content
-
-            st.success("Result")
-            st.write(output)
+            st.success("Generated Output")
+            st.write(completion.choices[0].message.content)
 
         except Exception as e:
             st.error("Groq API Error")
             st.code(str(e))
+
+st.markdown('</div>', unsafe_allow_html=True)

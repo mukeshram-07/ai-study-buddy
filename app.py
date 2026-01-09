@@ -39,16 +39,13 @@ st.markdown("""
 .flashcard {
     border: 1px solid rgba(150,150,150,0.25);
     border-radius: 10px;
-    padding: 18px;
-    margin-bottom: 16px;
+    padding: 16px;
+    margin-bottom: 14px;
     background-color: var(--background-color);
 }
 .flashcard-q {
     font-weight: 600;
-    margin-bottom: 8px;
-}
-.flashcard-a {
-    opacity: 0.9;
+    margin-bottom: 6px;
 }
 .mermaid {
     background-color: var(--background-color);
@@ -88,13 +85,19 @@ st.markdown("""
     border-radius: 50%;
     background-color: rgba(150,150,150,0.9);
 }
+.keypoint {
+    border-left: 4px solid rgba(100,100,255,0.6);
+    padding: 8px 12px;
+    margin-bottom: 8px;
+    background-color: var(--background-color);
+}
 </style>
 """, unsafe_allow_html=True)
 
 # -------------------------------------------------
-# Helpers
+# Helper Functions
 # -------------------------------------------------
-def fetch_images_pexels(topic, count=4):
+def fetch_images(topic, count=4):
     if not pexels_key:
         return []
     url = "https://api.pexels.com/v1/search"
@@ -108,12 +111,12 @@ def fetch_images_pexels(topic, count=4):
         return []
 
 def show_images(topic):
-    imgs = fetch_images_pexels(topic)
-    if not imgs:
+    images = fetch_images(topic)
+    if not images:
         return
     st.subheader("Related Visuals")
-    cols = st.columns(len(imgs))
-    for c, img in zip(cols, imgs):
+    cols = st.columns(len(images))
+    for c, img in zip(cols, images):
         c.image(img, use_container_width=True)
 
 def clean_mermaid(raw):
@@ -145,6 +148,7 @@ def parse_flashcards_json(text):
 # Sidebar
 # -------------------------------------------------
 st.sidebar.title("Application Menu")
+
 mode = st.sidebar.selectbox(
     "Study Mode",
     [
@@ -152,7 +156,8 @@ mode = st.sidebar.selectbox(
         "Summarize Notes",
         "Generate Quiz",
         "Generate Flashcards",
-        "Generate Flowchart"
+        "Generate Flowchart",
+        "Exam Quick Revision"
     ]
 )
 
@@ -176,7 +181,7 @@ if st.sidebar.button("Clear History"):
 # Header
 # -------------------------------------------------
 st.title("AI-Powered Study Buddy")
-st.caption("Explain topics, summarize notes, generate quizzes, flashcards, flowcharts, and visuals")
+st.caption("Learning, revision, and exam preparation in one place")
 
 # -------------------------------------------------
 # History View
@@ -200,7 +205,7 @@ if st.button("Generate Output"):
         st.warning("Input cannot be empty.")
         st.stop()
 
-    # ---------------- Explain Topic ----------------
+    # ---------- Explain Topic ----------
     if mode == "Explain Topic":
         prompt = f"Explain the following topic clearly with examples:\n{user_input}"
         res = client.chat.completions.create(
@@ -209,13 +214,12 @@ if st.button("Generate Output"):
             temperature=0.3,
             max_tokens=900
         )
-        explanation = res.choices[0].message.content
+        output = res.choices[0].message.content
         st.subheader("Explanation")
-        st.write(explanation)
+        st.write(output)
         show_images(user_input)
-        output = explanation
 
-    # ---------------- Summarize ----------------
+    # ---------- Summarize ----------
     elif mode == "Summarize Notes":
         prompt = f"Summarize the following notes in bullet points:\n{user_input}"
         res = client.chat.completions.create(
@@ -227,11 +231,11 @@ if st.button("Generate Output"):
         output = res.choices[0].message.content
         st.write(output)
 
-    # ---------------- Quiz ----------------
+    # ---------- Quiz ----------
     elif mode == "Generate Quiz":
         prompt = f"""
         Create exactly 5 quiz questions WITH answers.
-        Strictly based only on this topic: "{user_input}"
+        Strictly based on the topic: "{user_input}"
         """
         res = client.chat.completions.create(
             model="llama-3.1-8b-instant",
@@ -242,17 +246,14 @@ if st.button("Generate Output"):
         output = res.choices[0].message.content
         st.write(output)
 
-    # ---------------- Flashcards (FIXED) ----------------
+    # ---------- Flashcards ----------
     elif mode == "Generate Flashcards":
         prompt = f"""
-        Generate exactly 5 flashcards for the topic below.
-
-        Return ONLY valid JSON in this format:
+        Generate exactly 5 flashcards.
+        Return ONLY JSON:
         [
-          {{ "question": "...", "answer": "..." }},
           {{ "question": "...", "answer": "..." }}
         ]
-
         Topic: "{user_input}"
         """
         res = client.chat.completions.create(
@@ -261,26 +262,19 @@ if st.button("Generate Output"):
             temperature=0.2,
             max_tokens=700
         )
-
         cards = parse_flashcards_json(res.choices[0].message.content)
-
         st.subheader("Flashcards")
+        for i, c in enumerate(cards, 1):
+            st.markdown(f"""
+            <div class="flashcard">
+                <div class="flashcard-q">Q{i}. {c["question"]}</div>
+                <div>A: {c["answer"]}</div>
+            </div>
+            """, unsafe_allow_html=True)
+        output = cards
 
-        if not cards:
-            st.error("Flashcards could not be generated.")
-            output = ""
-        else:
-            for i, c in enumerate(cards, 1):
-                st.markdown(f"""
-                <div class="flashcard">
-                    <div class="flashcard-q">Q{i}. {c["question"]}</div>
-                    <div class="flashcard-a">A: {c["answer"]}</div>
-                </div>
-                """, unsafe_allow_html=True)
-            output = cards
-
-    # ---------------- Flowchart ----------------
-    else:
+    # ---------- Flowchart ----------
+    elif mode == "Generate Flowchart":
         prompt = f"""
         Convert the topic into a Mermaid flowchart.
         Use --> for main steps and -.-> for optional steps.
@@ -293,7 +287,6 @@ if st.button("Generate Output"):
             temperature=0.3,
             max_tokens=700
         )
-
         flow = clean_mermaid(res.choices[0].message.content)
         st.subheader("Visual Flowchart")
         st.markdown(f"<div class='mermaid'>{flow}</div>", unsafe_allow_html=True)
@@ -318,7 +311,32 @@ if st.button("Generate Output"):
         show_images(user_input + " diagram")
         output = flow
 
-    # ---------------- Save History ----------------
+    # ---------- Exam Quick Revision ----------
+    else:
+        prompt = f"""
+        Generate 10 high-yield exam key points for the topic below.
+        Rules:
+        - One line per point
+        - Very short
+        - No explanations
+        - Exam-oriented language
+
+        Topic: "{user_input}"
+        """
+        res = client.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.2,
+            max_tokens=400
+        )
+        points = res.choices[0].message.content.split("\n")
+        st.subheader("Exam Quick Revision – Key Points")
+        for p in points:
+            if p.strip():
+                st.markdown(f"<div class='keypoint'>{p}</div>", unsafe_allow_html=True)
+        output = points
+
+    # ---------- Save History ----------
     st.session_state.history.append({
         "mode": mode,
         "input": user_input,

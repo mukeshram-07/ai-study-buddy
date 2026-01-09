@@ -12,30 +12,50 @@ st.set_page_config(
 )
 
 # -----------------------------
-# Simple Professional Styling
+# Session State Initialization
+# -----------------------------
+if "history" not in st.session_state:
+    st.session_state.history = []
+
+if "selected_history" not in st.session_state:
+    st.session_state.selected_history = None
+
+# -----------------------------
+# Basic Styling
 # -----------------------------
 st.markdown("""
 <style>
 .flashcard {
     border: 1px solid #e0e0e0;
     border-radius: 10px;
-    padding: 20px;
-    margin-bottom: 15px;
+    padding: 18px;
+    margin-bottom: 14px;
     background-color: #ffffff;
-    box-shadow: 0px 4px 10px rgba(0,0,0,0.05);
+    box-shadow: 0px 4px 8px rgba(0,0,0,0.05);
 }
-
 .flashcard h4 {
-    color: #2a5298;
-    margin-bottom: 10px;
-}
-
-.flashcard p {
-    color: #333333;
-    font-size: 15px;
+    color: #1e3c72;
 }
 </style>
 """, unsafe_allow_html=True)
+
+# -----------------------------
+# Sidebar - History Menu
+# -----------------------------
+st.sidebar.title("📚 History")
+
+if not st.session_state.history:
+    st.sidebar.info("No history yet.")
+else:
+    for idx, item in enumerate(st.session_state.history):
+        label = f"{idx + 1}. {item['mode']}"
+        if st.sidebar.button(label, key=f"hist_{idx}"):
+            st.session_state.selected_history = idx
+
+st.sidebar.divider()
+if st.sidebar.button("🗑️ Clear History"):
+    st.session_state.history.clear()
+    st.session_state.selected_history = None
 
 # -----------------------------
 # Load API Key
@@ -49,7 +69,7 @@ if not api_key:
 client = Groq(api_key=api_key)
 
 # -----------------------------
-# UI
+# Main UI
 # -----------------------------
 st.title("AI-Powered Study Buddy")
 st.caption("Explain • Summarize • Quiz • Flashcards")
@@ -66,9 +86,33 @@ option = st.selectbox(
 
 text = st.text_area(
     "Enter your study content",
-    height=180,
+    height=170,
     placeholder="Example: Artificial Intelligence"
 )
+
+# -----------------------------
+# Show Selected History
+# -----------------------------
+if st.session_state.selected_history is not None:
+    item = st.session_state.history[st.session_state.selected_history]
+    st.subheader("📖 History Preview")
+    st.markdown(f"**Mode:** {item['mode']}")
+    st.markdown(f"**Input:** {item['input']}")
+    st.divider()
+
+    if item["mode"] == "Generate Flashcards":
+        for i, (q, a) in enumerate(item["output"], 1):
+            st.markdown(f"""
+            <div class="flashcard">
+                <h4>Flashcard {i}</h4>
+                <p><strong>Q:</strong> {q}</p>
+                <p><strong>A:</strong> {a}</p>
+            </div>
+            """, unsafe_allow_html=True)
+    else:
+        st.write(item["output"])
+
+    st.stop()
 
 # -----------------------------
 # Generate Button
@@ -81,7 +125,7 @@ if st.button("Generate"):
     if option == "Generate Flashcards":
         prompt = f"""
         Create exactly 5 study flashcards.
-        Use the format:
+        Format:
         Q: Question
         A: Answer
 
@@ -107,19 +151,19 @@ if st.button("Generate"):
                 max_tokens=400
             )
 
-            output = response.choices[0].message.content
+            result = response.choices[0].message.content
 
             # -----------------------------
-            # Flashcard Rendering
+            # Flashcard Handling
             # -----------------------------
             if option == "Generate Flashcards":
-                flashcards = re.findall(r"Q:\s*(.*?)\nA:\s*(.*?)(?:\n|$)", output, re.S)
+                cards = re.findall(r"Q:\s*(.*?)\nA:\s*(.*?)(?:\n|$)", result, re.S)
 
-                if not flashcards:
-                    st.warning("Could not format flashcards. Try again.")
+                if not cards:
+                    st.warning("Could not format flashcards.")
                 else:
                     st.subheader("Flashcards")
-                    for i, (q, a) in enumerate(flashcards, 1):
+                    for i, (q, a) in enumerate(cards, 1):
                         st.markdown(f"""
                         <div class="flashcard">
                             <h4>Flashcard {i}</h4>
@@ -127,9 +171,21 @@ if st.button("Generate"):
                             <p><strong>A:</strong> {a.strip()}</p>
                         </div>
                         """, unsafe_allow_html=True)
+
+                    st.session_state.history.append({
+                        "mode": option,
+                        "input": text,
+                        "output": [(q.strip(), a.strip()) for q, a in cards]
+                    })
             else:
                 st.success("Result")
-                st.write(output)
+                st.write(result)
+
+                st.session_state.history.append({
+                    "mode": option,
+                    "input": text,
+                    "output": result
+                })
 
         except Exception as e:
             st.error("Groq API Error")

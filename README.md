@@ -1,67 +1,62 @@
-AI-Powered Study Buddy
+# Ai Study Buddy
 
-AI-Powered Study Buddy is a web-based academic assistant designed to help students **learn, revise, and prepare for exams efficiently**.  
-The application combines large language models with visual learning aids to provide explanations, summaries, quizzes, flashcards, flowcharts, and exam-focused key points.
+![GitHub last commit](https://img.shields.io/github/last-commit/Mukeshram-07/ai-study-buddy)
+![GitHub repo size](https://img.shields.io/github/repo-size/Mukeshram-07/ai-study-buddy)
 
-Features
+## 📌 Overview
 
- Explain Topic
-- Clear, student-friendly explanations
-- Automatically displays **related images** for better visual understanding
+This is a Python-based project.
 
- Summarize Notes
-- Converts long notes into **concise bullet-point summaries**
-- Ideal for quick revision
+## 🛠️ Tech Stack
 
- Generate Quiz
-- Creates **topic-specific quiz questions with answers**
-- Helps in self-assessment and practice
+**AI / ML:** groq
 
- Generate Flashcards
-- Produces flashcards in **structured card format**
-- Uses JSON-based generation to ensure consistent formatting
+**Other:** streamlit, PyPDF2
 
- Generate Flowchart
-- Automatically creates:
-  - Mermaid-based visual flowcharts
-  - Step-by-step vertical process timeline
-  - Simple beginner-friendly explanation
-- Includes **related diagrams/images**
+## 📁 Project Structure
 
- Exam Quick Revision (Key Feature)
-- Generates **high-yield exam key points**
-- Short, crisp, memory-oriented points
-- Perfect for last-minute exam preparation
-- 
- History
-- View and revisit previously generated content
-
-
-
-Tech Stack
-
-- **Frontend & UI:** Streamlit  
-- **Backend / AI:** Groq LLM (LLaMA 3.1)  
-- **Image API:** Pexels API  
-- **Language:** Python  
-
-Project Structure
-
+```
 ai-study-buddy/
-│
-├── app.py
-├── README.md
-├── requirements.txt
-├── .gitignore
-├── .env.example
-├── LICENSE
-│
+├── .devcontainer/
 ├── docs/
-│ ├── architecture.md
-│ └── features.md
-│
-└── screenshots/
-├── home.png
-├── flashcards.png
-└── flowchart.png
+├── screenshots/
+├── LICENSE
+├── README.md
+├── app.py
+├── docs
+├── requirements.txt
+├── screenshots
+```
 
+## 🚀 Getting Started
+
+### Manual Setup
+
+```bash
+# Clone the repo
+git clone https://github.com/Mukeshram-07/ai-study-buddy.git
+cd ai-study-buddy
+
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Run the application
+python app.py
+```
+
+## 🤝 Contributing
+
+Contributions are welcome! Please open an issue or submit a pull request.
+
+## 👤 Author
+
+**Mukeshram**
+- GitHub: [@Mukeshram-07](https://github.com/Mukeshram-07)
+
+## 📄 License
+
+MIT License
